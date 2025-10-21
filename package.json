@@ -19,7 +19,7 @@
     "url": "https://github.com/LJVoyage"
   },
   "dependencies": {
-   "com.ljvoyage.toolkit": "git+https://github.com/LJVoyage/LJVToolkit.git#1.0.0"
+   "com.ljvoyage.toolkit": "1.0.0"
   },
   "license": "MIT"
 }
