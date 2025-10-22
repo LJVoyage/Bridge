@@ -1,31 +1,30 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace LJVoyage.LJVNet.Runtime
 {
     [CreateAssetMenu(fileName = "NetConfig", menuName = "LJV/Net/Config")]
     public class NetConfig : ScriptableObject
     {
-        public string baseUrl = "https://api.example.com/";
-        public string token;
-        public int timeout = 10;
-        public bool logRequest = true;
-        public bool logResponse = true;
+        public NetEnvironment currentEnvironment = NetEnvironment.Development;
 
-        private static NetConfig _instance;
+        [Header("Development")]
+        public string devBaseUrl = "http://localhost:8080";
 
-        public static NetConfig Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = Resources.Load<NetConfig>("NetConfig");
-                    if (_instance == null)
-                        Debug.LogWarning("⚠️ NetAPIConfig 未找到，请放入 Resources/NetAPIConfig.asset");
-                }
+        [Header("Testing")]
+        public string testBaseUrl = "http://test.server.com";
 
-                return _instance;
-            }
-        }
+        [Header("Production")]
+        public string prodBaseUrl = "https://api.server.com";
+
+        [Header("General")]
+        public int timeoutSeconds = 10;
+        public bool useAssetBundle = false;
+        public string abPath;
+        public string abAssetName = "NetConfig";
+
+       
+        
+        
     }
 }

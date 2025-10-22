@@ -12,8 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 07a66170e3fc4da0bac5d81e30515d06, type: 3}
   m_Name: NetworkConfig
   m_EditorClassIdentifier: 
-  baseUrl: https://api.example.com/
-  token: 
-  timeout: 10
-  logRequest: 1
-  logResponse: 1
+  currentEnvironment: 1
+  devBaseUrl: http://localhost:8080
+  devToken: 546465
+  testBaseUrl: http://test.server.com
+  testToken: 4654
+  prodBaseUrl: https://api.server.com
+  prodToken: 
+  timeoutSeconds: 10
+  useAssetBundle: 0
+  abPath: 13456
+  abAssetName: NetConfig

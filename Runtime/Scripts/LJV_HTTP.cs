@@ -8,7 +8,7 @@ using UnityEngine.Networking;
 namespace LJVoyage.LJVNet.Runtime
 {
     // ReSharper disable once IdentifierTypo
-    public static class LJVHTTP
+    public static partial class LJVHTTP
     {
         // 拦截器
         public static Action<UnityWebRequest> OnRequest; // 请求前
@@ -40,7 +40,7 @@ namespace LJVoyage.LJVNet.Runtime
         private static IEnumerator PostRoutine<T>(string path, object body, Action<T> onSuccess,
             Action<Exception> onFail)
         {
-            string url = NetConfig.Instance.baseUrl + path;
+            string url = NetConfigLoader.GetBaseUrl() + path;
             string json = body != null ? JsonUtility.ToJson(body) : "{}";
 
             using var req = new UnityWebRequest(url, "POST");
@@ -54,18 +54,13 @@ namespace LJVoyage.LJVNet.Runtime
         // 统一请求发送逻辑
         private static IEnumerator Send<T>(UnityWebRequest req, Action<T> onSuccess, Action<Exception> onFail)
         {
-            var cfg = NetConfig.Instance;
-
-            // 加 Header
-            if (!string.IsNullOrEmpty(cfg.token))
-                req.SetRequestHeader("Authorization", $"Bearer {cfg.token}");
-
+            var cfg = NetConfigLoader.Config;
+            
             // 请求拦截器
             OnRequest?.Invoke(req);
 
-            req.timeout = cfg.timeout;
-            if (cfg.logRequest)
-                Debug.Log($"➡️ [Request] {req.method} {req.url}");
+            req.timeout = cfg.timeoutSeconds;
+
 
             yield return req.SendWebRequest();
 
@@ -85,8 +80,7 @@ namespace LJVoyage.LJVNet.Runtime
             }
 
             string resText = req.downloadHandler.text;
-            if (cfg.logResponse)
-                Debug.Log($"⬅️ [Response] {resText}");
+
 
             if (OnResponse != null)
                 resText = OnResponse.Invoke(resText);
@@ -105,7 +99,7 @@ namespace LJVoyage.LJVNet.Runtime
 
         private static string BuildUrl(string path, Dictionary<string, string> query)
         {
-            var url = NetConfig.Instance.baseUrl + path;
+            var url = NetConfigLoader.GetBaseUrl() + path;
             if (query != null && query.Count > 0)
             {
                 List<string> list = new();

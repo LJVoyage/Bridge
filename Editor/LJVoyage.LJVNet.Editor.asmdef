@@ -1,7 +1,8 @@
 {
-    "name": "LJVoyage.LJVNet.Runtime",
+    "name": "LJVoyage.LJVNet.Editor",
     "rootNamespace": "",
     "references": [
+        "GUID:057b9764972b6ce4fa25125cdb2ad34f",
         "GUID:0286d4cd81cb0c245a7c127e333f132c"
     ],
     "includePlatforms": [],
