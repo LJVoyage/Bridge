@@ -1,0 +1,120 @@
+name: Publish LJV Network
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Version to release (optional, leave empty to auto patch increment)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # 1️⃣ 检出仓库
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ 设置 Node.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 3️⃣ 安装 semver 工具
+      - name: Install semver
+        run: npm install -g semver
+
+      # 4️⃣ 确定版本号（手动输入或自动 patch 递增）
+      - name: Determine version
+        id: version
+        run: |
+          INPUT_VER="${{ github.event.inputs.release_version }}"
+          if [ -n "$INPUT_VER" ]; then
+            NEW_VER="$INPUT_VER"
+          else
+            CURRENT_VER=$(node -p "require('./package.json').version")
+            NEW_VER=$(npx semver $CURRENT_VER -i patch)
+          fi
+          echo "Determined version: $NEW_VER"
+          echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+
+      # 5️⃣ 更新 ljvtoolkit 依赖为最新
+      - name: Update ljvtoolkit dependency
+        run: |
+          echo "🔍 Fetching latest LJVToolkit version..."
+          LJV_VER=$(git ls-remote --tags https://github.com/LJVoyage/LJVToolkit.git \
+            | grep -o 'refs/tags/v[0-9.]*' | sort -V | tail -n 1 | sed 's/refs\/tags\/v//')
+          echo "Found latest LJVToolkit version: $LJV_VER"
+          node -e "let fs=require('fs');let p=require('./package.json');p.dependencies['com.ljvoyage.ljvtoolkit']='${LJV_VER}';fs.writeFileSync('./package.json', JSON.stringify(p,null,2));"
+
+      # 6️⃣ 更新 package.json 版本
+      - name: Update package.json version
+        run: |
+          NEW_VER=${{ steps.version.outputs.new_version }}
+          echo "🔄 Setting package.json version to $NEW_VER"
+          node -e "let fs=require('fs');let p=require('./package.json');p.version='${NEW_VER}';fs.writeFileSync('./package.json', JSON.stringify(p,null,2));"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add package.json
+          git commit -m "chore: set version to ${NEW_VER}" || echo "No changes to commit"
+
+      # 7️⃣ 自动生成或更新 CHANGELOG.md
+      - name: Generate CHANGELOG
+        run: |
+          NEW_VER=${{ steps.version.outputs.new_version }}
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            git log $LAST_TAG..HEAD --pretty=format:"- %s" > NEW_CHANGELOG.md
+          else
+            echo "- Initial release" > NEW_CHANGELOG.md
+          fi
+          echo "## v${NEW_VER}" | cat - NEW_CHANGELOG.md > TEMP_CHANGELOG.md
+          cat CHANGELOG.md >> TEMP_CHANGELOG.md 2>/dev/null || true
+          mv TEMP_CHANGELOG.md CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "chore: update changelog for v${NEW_VER}" || echo "No changes to commit"
+          git push origin HEAD:main
+
+      # 8️⃣ 打 tag
+      - name: Create Git Tag
+        run: |
+          NEW_VER=${{ steps.version.outputs.new_version }}
+          git tag -f v${NEW_VER}
+          git push origin v${NEW_VER} --force
+
+      # 9️⃣ 验证版本
+      - name: Verify version
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          TAG_VER=${{ steps.version.outputs.new_version }}
+          if [ "$PKG_VER" != "$TAG_VER" ]; then
+            echo "❌ Version mismatch!"
+            exit 1
+          fi
+          echo "✅ Version successfully synced with tag!"
+
+      # 🔟 创建 GitHub Release
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LJV Network v${{ steps.version.outputs.new_version }}"
+          body: "Release v${{ steps.version.outputs.new_version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 1️⃣1️⃣ 通知 OpenUPM 构建
+      - name: Trigger OpenUPM build
+        run: |
+          PACKAGE_NAME="com.ljvoyage.network"
+          echo "🚀 Triggering OpenUPM build for ${PACKAGE_NAME}"
+          curl -X POST https://openupm.com/api/packages/trigger \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"${PACKAGE_NAME}\"}"
+
+      # 1️⃣2️⃣ 完成
+      - name: Done
+        run: echo "🎉 Publish pipeline completed successfully!"
