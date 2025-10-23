@@ -61,8 +61,9 @@ jobs:
           git config user.email "github-actions@github.com"
           git add package.json
           git commit -m "chore: set version to ${NEW_VER}" || echo "No changes to commit"
+          git push origin HEAD:main
 
-      # 7️⃣ 自动生成或更新 CHANGELOG.md
+      # 7️⃣ 自动生成/更新 CHANGELOG.md
       - name: Generate CHANGELOG
         run: |
           NEW_VER=${{ steps.version.outputs.new_version }}
@@ -79,12 +80,16 @@ jobs:
           git commit -m "chore: update changelog for v${NEW_VER}" || echo "No changes to commit"
           git push origin HEAD:main
 
-      # 8️⃣ 打 tag
-      - name: Create Git Tag
-        run: |
-          NEW_VER=${{ steps.version.outputs.new_version }}
-          git tag -f v${NEW_VER}
-          git push origin v${NEW_VER} --force
+      # 8️⃣ 创建 Release（自动创建 tag）
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: "LJV Network v${{ steps.version.outputs.new_version }}"
+          body: "Release v${{ steps.version.outputs.new_version }}"
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 9️⃣ 验证版本
       - name: Verify version
@@ -97,16 +102,7 @@ jobs:
           fi
           echo "✅ Version successfully synced with tag!"
 
-      # 🔟 创建 GitHub Release
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "LJV Network v${{ steps.version.outputs.new_version }}"
-          body: "Release v${{ steps.version.outputs.new_version }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 1️⃣1️⃣ 通知 OpenUPM 构建
+      # 🔟 通知 OpenUPM 构建
       - name: Trigger OpenUPM build
         run: |
           PACKAGE_NAME="com.ljvoyage.network"
@@ -115,6 +111,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"name\": \"${PACKAGE_NAME}\"}"
 
-      # 1️⃣2️⃣ 完成
+      # 1️⃣1️⃣ 完成
       - name: Done
         run: echo "🎉 Publish pipeline completed successfully!"
