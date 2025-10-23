@@ -62,6 +62,6 @@ jobs:
         run: |
           PACKAGE_NAME="com.ljvoyage.network"
           echo "🚀 Triggering OpenUPM build for ${PACKAGE_NAME}"
-          curl -X POST https://package.openupm.com/api/builds \
+          curl -X POST https://openupm.com/api/packages/trigger \
             -H "Content-Type: application/json" \
-            -d "{\"packageName\": \"${PACKAGE_NAME}\"}"
+            -d "{\"name\": \"${PACKAGE_NAME}\"}"
