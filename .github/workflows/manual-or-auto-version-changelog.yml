@@ -102,15 +102,6 @@ jobs:
           fi
           echo "✅ Version successfully synced with tag!"
 
-      # 🔟 通知 OpenUPM 构建
-      - name: Trigger OpenUPM build
-        run: |
-          PACKAGE_NAME="com.ljvoyage.network"
-          echo "🚀 Triggering OpenUPM build for ${PACKAGE_NAME}"
-          curl -X POST https://openupm.com/api/packages/trigger \
-            -H "Content-Type: application/json" \
-            -d "{\"name\": \"${PACKAGE_NAME}\"}"
-
-      # 1️⃣1️⃣ 完成
+      # 🔟 完成
       - name: Done
-        run: echo "🎉 Publish pipeline completed successfully!"
+        run: echo "🎉 Publish pipeline completed successfully! OpenUPM will automatically build the new version once the tag is pushed."
