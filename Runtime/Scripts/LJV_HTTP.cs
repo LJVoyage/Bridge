@@ -8,24 +8,35 @@ using UnityEngine.Networking;
 namespace LJVoyage.LJVNet.Runtime
 {
     // ReSharper disable once IdentifierTypo
-    public static partial class LJVHTTP
+    public partial class LJVHTTP
     {
         // 拦截器
         public static Action<UnityWebRequest> OnRequest; // 请求前
         public static Func<string, string> OnResponse; // 响应后
         public static Action<Exception> OnError; // 错误时
 
+        private static NetConfig _config;
+
+        private static NetProxy _proxy;
+
+        public static void Init(INetConfigProvider configProvider)
+        {
+            _config = configProvider.LoadConfig();
+
+            _proxy = NetProxy.Instance;
+        }
+        
         // 🌐 对外接口：Get
         public static void Get<T>(string path, Action<T> onSuccess, Action<Exception> onFail = null,
             Dictionary<string, string> query = null)
         {
-            NetProxy.Instance.RunCoroutine(GetRoutine(path, onSuccess, onFail, query));
+            _proxy.RunCoroutine(GetRoutine(path, onSuccess, onFail, query));
         }
 
         // 🌐 对外接口：Post
         public static void Post<T>(string path, object body, Action<T> onSuccess, Action<Exception> onFail = null)
         {
-            NetProxy.Instance.RunCoroutine(PostRoutine(path, body, onSuccess, onFail));
+            _proxy.RunCoroutine(PostRoutine(path, body, onSuccess, onFail));
         }
 
         // 实际的协程逻辑
@@ -55,7 +66,7 @@ namespace LJVoyage.LJVNet.Runtime
         private static IEnumerator Send<T>(UnityWebRequest req, Action<T> onSuccess, Action<Exception> onFail)
         {
             var cfg = NetConfigLoader.Config;
-            
+
             // 请求拦截器
             OnRequest?.Invoke(req);
 
@@ -99,7 +110,12 @@ namespace LJVoyage.LJVNet.Runtime
 
         private static string BuildUrl(string path, Dictionary<string, string> query)
         {
-            var url = NetConfigLoader.GetBaseUrl() + path;
+            var baseUri = new Uri(_config.GetBaseUrl());
+            
+            var fullUri = new Uri(baseUri, path.TrimStart('/'));
+            
+            var url = fullUri.ToString();
+            
             if (query != null && query.Count > 0)
             {
                 List<string> list = new();

@@ -19,7 +19,8 @@
     "url": "https://github.com/LJVoyage"
   },
   "dependencies": {
-    "com.ljvoyage.ljvtoolkit": "1.0.10"
+    "com.ljvoyage.ljvtoolkit": "1.0.10",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   },
   "license": "MIT"
 }

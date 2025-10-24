@@ -1,31 +1,28 @@
 ﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement class="root">
-        <ui:Label text="LJV Network Configuration" class="header"/>
+        <ui:Label text="LJV Network Configuration" class="header" />
 
-        <ui:EnumField label="Environment" name="envField"/>
-        <ui:Toggle label="Use AssetBundle" name="useABToggle"/>
+        <ui:EnumField label="Environment" name="envField" />
+        <ui:Toggle label="Use AssetBundle" name="useABToggle" />
 
         <ui:Foldout text="Development">
-            <ui:TextField label="Base URL" name="devBaseUrl"/>
-            <ui:TextField label="Token" name="devToken"/>
+            <ui:TextField label="Base URL" name="devBaseUrl" />
         </ui:Foldout>
 
         <ui:Foldout text="Testing">
-            <ui:TextField label="Base URL" name="testBaseUrl"/>
-            <ui:TextField label="Token" name="testToken"/>
+            <ui:TextField label="Base URL" name="testBaseUrl" />
         </ui:Foldout>
 
         <ui:Foldout text="Production">
-            <ui:TextField label="Base URL" name="prodBaseUrl"/>
-            <ui:TextField label="Token" name="prodToken"/>
+            <ui:TextField label="Base URL" name="prodBaseUrl" />
         </ui:Foldout>
 
         <ui:Foldout text="General Settings">
-            <ui:IntegerField label="Timeout (seconds)" name="timeoutField"/>
-            <ui:TextField label="AB Path" name="abPath"/>
-            <ui:TextField label="AB Asset Name" name="abAssetName"/>
+            <ui:IntegerField label="Timeout (seconds)" name="timeoutField" />
+            <ui:TextField label="AB Path" name="abPath" />
+            <ui:TextField label="AB Asset Name" name="abAssetName" />
         </ui:Foldout>
 
-        <ui:Button text="Save" name="saveButton"/>
+        <ui:Button text="Save" name="saveButton" />
     </ui:VisualElement>
 </ui:UXML>

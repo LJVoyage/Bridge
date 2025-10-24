@@ -22,9 +22,23 @@ namespace LJVoyage.LJVNet.Runtime
         public bool useAssetBundle = false;
         public string abPath;
         public string abAssetName = "NetConfig";
-
-       
         
+        
+        /// <summary>
+        /// 获取当前环境的基础URL。
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public string GetBaseUrl()
+        {
+            return currentEnvironment switch
+            {
+                NetEnvironment.Development => devBaseUrl,
+                NetEnvironment.Testing => testBaseUrl,
+                NetEnvironment.Production => prodBaseUrl,
+                _ => throw new ArgumentOutOfRangeException(nameof(currentEnvironment), currentEnvironment, null)
+            };
+        }
         
     }
 }
