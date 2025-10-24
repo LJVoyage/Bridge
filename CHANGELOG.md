@@ -1,4 +1,5 @@
-## v1.0.7
+## v1.0.8
+- chore: set version to 1.0.8## v1.0.7
 - chore: set version to 1.0.7
 - Remove OpenUPM build trigger from workflow## v1.0.6
 - chore: set version to 1.0.6
