@@ -65,30 +65,28 @@ namespace LJVoyage.Network.Editor
             return result.Distinct().ToList();
         }
 
-        private static INetConfigProvider _provider;
+       
 
         private static INetConfigProvider Provider
         {
             get
             {
-                if (_provider == null)
+                Type type = null;
+
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
                 {
-                    Type type = null;
-
-                    foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                    {
-                        type = assembly.GetType(Config.providerTypeName);
-                        if (type != null)
-                            break;
-                    }
-
-                    if (type == null)
-                        throw new Exception($"未找到类型 {Config.providerTypeName}");
-
-                    _provider = (INetConfigProvider)Activator.CreateInstance(type);
+                    type = assembly.GetType(Config.providerTypeName);
+                    if (type != null)
+                        break;
                 }
 
-                return _provider;
+                if (type == null)
+                    throw new Exception($"未找到类型 {Config.providerTypeName}");
+
+                return (INetConfigProvider)Activator.CreateInstance(type);
+
+
+               
             }
         }
 
@@ -120,7 +118,7 @@ namespace LJVoyage.Network.Editor
 
         [MenuItem(MENU_ROOT + "Production")]
         private static void SetProduction() => SetEnvironment(NetEnvironment.Production);
-        
+
         private static bool ValidateLoaderConfig()
         {
             var loaderConfig = Config;
