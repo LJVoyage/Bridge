@@ -8,11 +8,13 @@ using UnityEngine.Networking;
 namespace LJVoyage.LJVNet.Runtime
 {
     // ReSharper disable once IdentifierTypo
-    public partial class LJVHTTP
+    public partial class LJVNet
     {
         // 拦截器
         public static Action<UnityWebRequest> OnRequest; // 请求前
+
         public static Func<string, string> OnResponse; // 响应后
+
         public static Action<Exception> OnError; // 错误时
 
         private static NetConfig _config;
@@ -25,7 +27,7 @@ namespace LJVoyage.LJVNet.Runtime
 
             _proxy = NetProxy.Instance;
         }
-        
+
         // 🌐 对外接口：Get
         public static void Get<T>(string path, Action<T> onSuccess, Action<Exception> onFail = null,
             Dictionary<string, string> query = null)
@@ -71,8 +73,7 @@ namespace LJVoyage.LJVNet.Runtime
             OnRequest?.Invoke(req);
 
             req.timeout = cfg.timeoutSeconds;
-
-
+            
             yield return req.SendWebRequest();
 
 #if UNITY_2020_3_OR_NEWER
@@ -111,11 +112,11 @@ namespace LJVoyage.LJVNet.Runtime
         private static string BuildUrl(string path, Dictionary<string, string> query)
         {
             var baseUri = new Uri(_config.GetBaseUrl());
-            
+
             var fullUri = new Uri(baseUri, path.TrimStart('/'));
-            
+
             var url = fullUri.ToString();
-            
+
             if (query != null && query.Count > 0)
             {
                 List<string> list = new();
