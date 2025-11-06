@@ -1,6 +1,6 @@
 {
   "name": "com.ljvoyage.network",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "displayName": "LJVoyage Network",
   "description": "A lightweight Unity networking toolkit providing API request management, interceptors, and editor-based configuration.",
   "unity": "2022.3",
