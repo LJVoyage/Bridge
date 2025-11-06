@@ -1,4 +1,6 @@
-## v1.0.9
+## v1.0.10
+- chore: set version to 1.0.10
+- 修正 Provider 缓存错误## v1.0.9
 - chore: set version to 1.0.9
 - 调整配置文件
 - 调整配置文件
