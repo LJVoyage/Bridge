@@ -6,7 +6,7 @@ namespace LJVoyage.LJVNet.Runtime
     {
         public INetConfig LoadConfig()
         {
-            return Resources.Load<NetConfig>("NetworkConfig");
+            return Resources.Load<NetConfig>("LJVNet/Config/NetworkConfig");
         }
 
         public NetEnvironment GetEnvironment()
