@@ -1,16 +1,12 @@
-﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Bridge/Editor/Styles/BridgeProjectSettings.uss?fileID=7433441132597879392&amp;guid=0777739deb02eea4cb0c9bc95747a600&amp;type=3#BridgeProjectSettings" />
     <ui:ScrollView name="RootScrollView" class="settings-scroll">
         <ui:VisualElement name="Root" class="settings-root">
             <ui:Label text="Bridge 网络配置" class="page-title" />
-
-            <ui:TextElement
-                text="在这里统一维护当前环境，以及每个环境下的端点键值对。配置资源会优先全项目搜索，若不存在则自动创建到 Assets/Resources/Config。"
-                class="summary-text" />
-
+            <ui:TextElement text="在这里统一维护当前环境，以及每个环境下的端点键值对。配置资源会优先全项目搜索，若不存在则自动创建到 Assets/Resources/Config。" class="summary-text" />
             <ui:VisualElement name="MissingAssetMessage" class="warning-banner" style="display: none;">
-                <ui:TextElement name="MissingAssetText" text="" class="warning-banner-text" />
+                <ui:TextElement name="MissingAssetText" class="warning-banner-text" />
             </ui:VisualElement>
-
             <ui:VisualElement name="ContentRoot">
                 <ui:VisualElement class="section-card">
                     <ui:Label text="环境工具栏" class="section-title" />
@@ -19,16 +15,11 @@
                         <ui:TextField name="NewEnvironmentField" label="新增环境" class="toolbar-input" />
                         <ui:Button name="AddEnvironmentButton" text="添加" class="primary-button" />
                     </ui:VisualElement>
-                    <ui:TextElement
-                        text="新建配置时默认会带有“开发 / 测试 / 生产”三个环境，后续可以手动删除或继续扩展。测试环境会始终保留。"
-                        class="info-banner-text" />
+                    <ui:TextElement text="新建配置时默认会带有“开发 / 测试 / 生产”三个环境，后续可以手动删除或继续扩展。测试环境会始终保留。" class="info-banner-text" />
                 </ui:VisualElement>
-
                 <ui:VisualElement class="section-card section-card-green">
                     <ui:Label text="环境与链接" class="section-title section-title-green" />
-                    <ui:TextElement
-                        text="每个环境使用单独卡片展示，卡片内维护多个链接键值对，适合 webapi、socket 等同环境多端口场景。"
-                        class="section-tip" />
+                    <ui:TextElement text="每个环境使用单独卡片展示，卡片内维护多个链接键值对，适合 webapi、socket 等同环境多端口场景。" class="section-tip" />
                     <ui:VisualElement name="EnvironmentCardContainer" class="environment-card-container" />
                 </ui:VisualElement>
             </ui:VisualElement>
