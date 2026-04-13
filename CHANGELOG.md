@@ -1,4 +1,9 @@
-## v1.0.10
+## v1.0.11
+- chore: set version to 1.0.11
+- 修正版本号
+- Merge branch 'main' of github.com:LJVoyage/LJVNet
+- 添加projectsetting
+- add gitignore## v1.0.10
 - chore: set version to 1.0.10
 - 修正 Provider 缓存错误## v1.0.9
 - chore: set version to 1.0.9
