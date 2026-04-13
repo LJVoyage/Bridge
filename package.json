@@ -1,6 +1,6 @@
 {
   "name": "com.voyageforge.bridge",
-  "version": "1.0.11",
+  "version": "0.0.1",
   "displayName": "Bridge",
   "description": "A lightweight Unity networking toolkit providing API request management, interceptors, and editor-based configuration.",
   "unity": "2022.3",
@@ -19,7 +19,7 @@
     "url": "https://github.com/VoyageForge/Bridge"
   },
   "dependencies": {
-    "com.voyageforge.depot": "1.0.14",
+    "com.voyageforge.depot": "0.0.1",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.cysharp.unitask": "2.5.10"
   },
