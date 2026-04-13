@@ -1,7 +1,7 @@
 {
-  "name": "com.voyage.bridge",
+  "name": "com.voyageforge.bridge",
   "version": "1.0.11",
-  "displayName": "Voyage Bridge",
+  "displayName": "Bridge",
   "description": "A lightweight Unity networking toolkit providing API request management, interceptors, and editor-based configuration.",
   "unity": "2022.3",
   "keywords": [
@@ -15,11 +15,11 @@
   "category": "Networking",
   "hideInEditor": false,
   "author": {
-    "name": "Voyage",
-    "url": "https://github.com/LJVoyage/Bridge"
+    "name": "VoyageForge",
+    "url": "https://github.com/VoyageForge/Bridge"
   },
   "dependencies": {
-    "com.ljvoyage.depot": "1.0.14",
+    "com.voyageforge.depot": "1.0.14",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.cysharp.unitask": "2.5.10"
   },
