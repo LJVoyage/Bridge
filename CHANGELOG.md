@@ -1,3 +1,5 @@
+## v0.0.2
+- Initial release
 ## v1.0.11
 - chore: set version to 1.0.11
 - 修正版本号
