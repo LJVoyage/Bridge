@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 
-namespace LJVoyage.LJVNet.Runtime
+namespace VoyageForge.Bridge.Runtime
 {
     /// <summary>
-    /// LJVNet 网络配置访问接口。
+    /// Bridge 网络配置访问接口。
     /// 运行时通过该接口读取当前环境和端点地址。
     /// </summary>
-    public interface INetConfig
+    public interface IBridgeConfig
     {
         /// <summary>
         /// 获取当前启用的环境键。

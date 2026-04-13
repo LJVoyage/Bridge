@@ -4,14 +4,14 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace LJVoyage.LJVNet.Runtime
+namespace VoyageForge.Bridge.Runtime
 {
     /// <summary>
     /// 单条端点配置。
     /// 一个环境可以配置多条端点，例如 default、webapi、socket。
     /// </summary>
     [Serializable]
-    public class LJVNetEndpointConfig
+    public class EndpointConfig
     {
         [SerializeField] private string environmentKey;
         [SerializeField] private string endpointKey;
@@ -46,11 +46,11 @@ namespace LJVoyage.LJVNet.Runtime
     }
 
     /// <summary>
-    /// LJVNet 网络配置资源。
+    /// Bridge 网络配置资源。
     /// 使用字符串环境键管理多环境、多端点地址。
     /// </summary>
-    [CreateAssetMenu(fileName = "LJVNetConfig", menuName = "LJV/Net/Config")]
-    public class LJVNetConfigAsset : ScriptableObject, INetConfig
+    [CreateAssetMenu(fileName = "BridgeConfig", menuName = "VoyageForge/Bridge/Config")]
+    public class BridgeConfigAsset : ScriptableObject, IBridgeConfig
     {
         /// <summary>
         /// 保底环境键。
@@ -61,7 +61,7 @@ namespace LJVoyage.LJVNet.Runtime
         private static readonly string[] DefaultEnvironmentKeys = { "开发", "测试", "生产" };
         [SerializeField] private string environmentKey;
         [SerializeField] private List<string> environmentKeys = new();
-        [SerializeField] private List<LJVNetEndpointConfig> endpointEntries = new();
+        [SerializeField] private List<EndpointConfig> endpointEntries = new();
         [SerializeField] private bool defaultsInitialized;
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace LJVoyage.LJVNet.Runtime
         /// <summary>
         /// 获取全部端点配置。
         /// </summary>
-        public IReadOnlyList<LJVNetEndpointConfig> EndpointEntries
+        public IReadOnlyList<EndpointConfig> EndpointEntries
         {
             get
             {
@@ -187,7 +187,7 @@ namespace LJVoyage.LJVNet.Runtime
             }
 
             AddEnvironmentIfMissing(normalizedKey);
-            endpointEntries.Add(new LJVNetEndpointConfig
+            endpointEntries.Add(new EndpointConfig
             {
                 EnvironmentKey = normalizedKey,
                 EndpointKey = "default",
@@ -256,7 +256,7 @@ namespace LJVoyage.LJVNet.Runtime
         private void EnsureConfigData()
         {
             environmentKeys ??= new List<string>();
-            endpointEntries ??= new List<LJVNetEndpointConfig>();
+            endpointEntries ??= new List<EndpointConfig>();
 
             if (!defaultsInitialized)
             {

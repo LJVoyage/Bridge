@@ -3,13 +3,13 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace LJVoyage.LJVNet.Runtime
+namespace VoyageForge.Bridge.Runtime
 {
     /// <summary>
-    /// LJVNet 客户端入口。
+    /// Bridge 客户端入口。
     /// 当前负责初始化配置与提供简单的网络请求扩展示例。
     /// </summary>
-    public static class LJVNetClient
+    public static class BridgeClient
     {
         /// <summary>
         /// 请求发送前回调。
@@ -26,15 +26,15 @@ namespace LJVoyage.LJVNet.Runtime
         /// </summary>
         public static Action<UnityWebRequest> OnError;
 
-        private static INetConfigProvider configProvider;
-        private static INetConfig config;
+        private static IBridgeConfigProvider configProvider;
+        private static IBridgeConfig config;
 
         /// <summary>
         /// 手动设置配置提供器实例。
         /// 使用方可以通过该方法决定配置从哪里加载。
         /// </summary>
         /// <param name="provider">配置提供器实例。</param>
-        public static void SetConfigProvider(INetConfigProvider provider)
+        public static void SetConfigProvider(IBridgeConfigProvider provider)
         {
             configProvider = provider ?? throw new ArgumentNullException(nameof(provider));
             config = null;
@@ -44,7 +44,7 @@ namespace LJVoyage.LJVNet.Runtime
         /// 使用泛型方式创建并设置配置提供器。
         /// </summary>
         /// <typeparam name="TProvider">提供器类型，必须带无参构造函数。</typeparam>
-        public static void SetConfigProvider<TProvider>() where TProvider : INetConfigProvider, new()
+        public static void SetConfigProvider<TProvider>() where TProvider : IBridgeConfigProvider, new()
         {
             SetConfigProvider(new TProvider());
         }
@@ -54,7 +54,7 @@ namespace LJVoyage.LJVNet.Runtime
         /// 当外部已经自行完成配置加载时，可以跳过提供器。
         /// </summary>
         /// <param name="netConfig">网络配置对象。</param>
-        public static void SetConfig(INetConfig netConfig)
+        public static void SetConfig(IBridgeConfig netConfig)
         {
             config = netConfig ?? throw new ArgumentNullException(nameof(netConfig));
         }
@@ -62,7 +62,7 @@ namespace LJVoyage.LJVNet.Runtime
         /// <summary>
         /// 获取当前已加载的网络配置。
         /// </summary>
-        public static INetConfig Config
+        public static IBridgeConfig Config
         {
             get
             {
@@ -84,7 +84,7 @@ namespace LJVoyage.LJVNet.Runtime
 
             if (configProvider == null)
             {
-                throw new InvalidOperationException("LJVNet 尚未设置配置提供器，请先调用 SetConfigProvider 或 SetConfig。");
+                throw new InvalidOperationException("Bridge 尚未设置配置提供器，请先调用 SetConfigProvider 或 SetConfig。");
             }
 
             config = configProvider.LoadConfig();
@@ -93,7 +93,7 @@ namespace LJVoyage.LJVNet.Runtime
                 throw new InvalidOperationException($"配置提供器 {configProvider.GetType().FullName} 未返回有效的网络配置。");
             }
 
-            Debug.Log($"已加载 LJVNet 网络配置：{config}");
+            Debug.Log($"已加载 Bridge 网络配置：{config}");
         }
 
         /// <summary>

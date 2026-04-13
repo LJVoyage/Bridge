@@ -1,5 +1,5 @@
 {
-    "name": "LJVoyage.LJVNet.Editor",
+    "name": "VoyageForge.Bridge.Editor",
     "rootNamespace": "",
     "references": [
         "GUID:057b9764972b6ce4fa25125cdb2ad34f",

@@ -1,21 +1,21 @@
 ﻿using System.Linq;
 using UnityEngine;
 
-namespace LJVoyage.LJVNet.Runtime
+namespace VoyageForge.Bridge.Runtime
 {
     /// <summary>
     /// 从 Resources 中搜索网络配置的默认提供器。
-    /// 该实现只是一个可选默认方案，使用方也可以自行实现 INetConfigProvider。
+    /// 该实现只是一个可选默认方案，使用方也可以自行实现 IBridgeConfigProvider。
     /// </summary>
-    public class ResourcesNetConfigProvider : INetConfigProvider
+    public class ResourcesBridgeConfigProvider : IBridgeConfigProvider
     {
         /// <summary>
         /// 从所有 Resources 目录中搜索第一份网络配置资源。
         /// </summary>
         /// <returns>网络配置实例。</returns>
-        public INetConfig LoadConfig()
+        public IBridgeConfig LoadConfig()
         {
-            var configs = Resources.LoadAll<LJVNetConfigAsset>(string.Empty);
+            var configs = Resources.LoadAll<BridgeConfigAsset>(string.Empty);
             if (configs == null || configs.Length == 0)
             {
                 return null;
@@ -23,7 +23,7 @@ namespace LJVoyage.LJVNet.Runtime
 
             if (configs.Length > 1)
             {
-                Debug.LogWarning("检测到多份 LJVNetConfig 配置资源，将使用搜索到的第一份配置。请只保留一份主配置资源。");
+                Debug.LogWarning("检测到多份 BridgeConfig 配置资源，将使用搜索到的第一份配置。请只保留一份主配置资源。");
             }
 
             return configs.First();
@@ -39,7 +39,7 @@ namespace LJVoyage.LJVNet.Runtime
             var config = LoadConfig();
             if (config == null)
             {
-                Debug.LogError("未在 Resources 目录中搜索到 LJVNetConfig 配置资源。");
+                Debug.LogError("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");
                 return "开发";
             }
 

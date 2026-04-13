@@ -1,10 +1,10 @@
-name: Publish LJV Network
+﻿name: Publish Bridge
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Version to release (optional, leave empty to auto patch increment)'
+        description: "Version to release (optional, leave empty to auto patch increment)"
         required: false
 
 permissions:
@@ -13,95 +13,112 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      PACKAGE_JSON_PATH: package.json
+      CHANGELOG_PATH: CHANGELOG.md
+
     steps:
-      # 1️⃣ 检出仓库
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ 设置 Node.js
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # 3️⃣ 安装 semver 工具
       - name: Install semver
         run: npm install -g semver
 
-      # 4️⃣ 确定版本号（手动输入或自动 patch 递增）
       - name: Determine version
         id: version
+        shell: bash
         run: |
           INPUT_VER="${{ github.event.inputs.release_version }}"
           if [ -n "$INPUT_VER" ]; then
             NEW_VER="$INPUT_VER"
           else
-            CURRENT_VER=$(node -p "require('./package.json').version")
-            NEW_VER=$(npx semver $CURRENT_VER -i patch)
+            CURRENT_VER=$(node -p "require('./${PACKAGE_JSON_PATH}').version")
+            NEW_VER=$(npx semver "$CURRENT_VER" -i patch)
           fi
           echo "Determined version: $NEW_VER"
-          echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VER" >> "$GITHUB_OUTPUT"
 
-      # 5️⃣ 更新 ljvtoolkit 依赖为最新
-      - name: Update ljvtoolkit dependency
+      - name: Update Depot dependency
+        shell: bash
         run: |
-          echo "🔍 Fetching latest LJVToolkit version..."
-          LJV_VER=$(git ls-remote --tags https://github.com/LJVoyage/LJVToolkit.git \
+          echo "Fetching latest Voyage Depot version..."
+          DEPOT_VER=$(git ls-remote --tags https://github.com/VoyageForge/Depot.git \
             | grep -o 'refs/tags/v[0-9.]*' | sort -V | tail -n 1 | sed 's/refs\/tags\/v//')
-          echo "Found latest LJVToolkit version: $LJV_VER"
-          node -e "let fs=require('fs');let p=require('./package.json');p.dependencies['com.ljvoyage.ljvtoolkit']='${LJV_VER}';fs.writeFileSync('./package.json', JSON.stringify(p,null,2));"
 
-      # 6️⃣ 更新 package.json 版本
-      - name: Update package.json version
+          if [ -z "$DEPOT_VER" ]; then
+            echo "Failed to determine latest Voyage Depot version."
+            exit 1
+          fi
+
+          echo "Found latest Voyage Depot version: $DEPOT_VER"
+          node -e "let fs=require('fs'); let p=require('./${PACKAGE_JSON_PATH}'); p.dependencies['com.voyageforge.depot'] = '${DEPOT_VER}'; fs.writeFileSync('${PACKAGE_JSON_PATH}', JSON.stringify(p, null, 2) + '\n');"
+
+      - name: Update package version
+        shell: bash
         run: |
-          NEW_VER=${{ steps.version.outputs.new_version }}
-          echo "🔄 Setting package.json version to $NEW_VER"
-          node -e "let fs=require('fs');let p=require('./package.json');p.version='${NEW_VER}';fs.writeFileSync('./package.json', JSON.stringify(p,null,2));"
+          NEW_VER="${{ steps.version.outputs.new_version }}"
+          echo "Setting ${PACKAGE_JSON_PATH} version to $NEW_VER"
+          node -e "let fs=require('fs'); let p=require('./${PACKAGE_JSON_PATH}'); p.version='${NEW_VER}'; fs.writeFileSync('${PACKAGE_JSON_PATH}', JSON.stringify(p, null, 2) + '\n');"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add package.json
-          git commit -m "chore: set version to ${NEW_VER}" || echo "No changes to commit"
+          git add "${PACKAGE_JSON_PATH}"
+          git commit -m "chore(bridge): set version to ${NEW_VER}" || echo "No changes to commit"
           git push origin HEAD:main
 
-      # 7️⃣ 自动生成/更新 CHANGELOG.md
-      - name: Generate CHANGELOG
+      - name: Generate changelog
+        shell: bash
         run: |
-          NEW_VER=${{ steps.version.outputs.new_version }}
+          NEW_VER="${{ steps.version.outputs.new_version }}"
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
           if [ -n "$LAST_TAG" ]; then
-            git log $LAST_TAG..HEAD --pretty=format:"- %s" > NEW_CHANGELOG.md
+            git log "$LAST_TAG"..HEAD --pretty=format:"- %s" > NEW_CHANGELOG.md
           else
             echo "- Initial release" > NEW_CHANGELOG.md
           fi
-          echo "## v${NEW_VER}" | cat - NEW_CHANGELOG.md > TEMP_CHANGELOG.md
-          cat CHANGELOG.md >> TEMP_CHANGELOG.md 2>/dev/null || true
-          mv TEMP_CHANGELOG.md CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "chore: update changelog for v${NEW_VER}" || echo "No changes to commit"
+
+          {
+            echo "## v${NEW_VER}"
+            cat NEW_CHANGELOG.md
+            if [ -f "${CHANGELOG_PATH}" ]; then
+              cat "${CHANGELOG_PATH}"
+            fi
+          } > TEMP_CHANGELOG.md
+
+          mv TEMP_CHANGELOG.md "${CHANGELOG_PATH}"
+          rm -f NEW_CHANGELOG.md
+
+          git add "${CHANGELOG_PATH}"
+          git commit -m "chore(bridge): update changelog for v${NEW_VER}" || echo "No changes to commit"
           git push origin HEAD:main
 
-      # 8️⃣ 创建 Release（自动创建 tag）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.new_version }}
-          name: "LJV Network v${{ steps.version.outputs.new_version }}"
+          name: "Bridge v${{ steps.version.outputs.new_version }}"
           body: "Release v${{ steps.version.outputs.new_version }}"
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 9️⃣ 验证版本
       - name: Verify version
+        shell: bash
         run: |
-          PKG_VER=$(node -p "require('./package.json').version")
-          TAG_VER=${{ steps.version.outputs.new_version }}
+          PKG_VER=$(node -p "require('./${PACKAGE_JSON_PATH}').version")
+          TAG_VER="${{ steps.version.outputs.new_version }}"
           if [ "$PKG_VER" != "$TAG_VER" ]; then
-            echo "❌ Version mismatch!"
+            echo "Version mismatch!"
             exit 1
           fi
-          echo "✅ Version successfully synced with tag!"
+          echo "Version successfully synced with tag."
 
-      # 🔟 完成
       - name: Done
-        run: echo "🎉 Publish pipeline completed successfully! OpenUPM will automatically build the new version once the tag is pushed."
+        run: echo "Publish pipeline completed successfully. OpenUPM will automatically build the new version once the tag is pushed."

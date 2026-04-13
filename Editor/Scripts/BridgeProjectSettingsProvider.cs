@@ -2,40 +2,39 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using LJVToolkit.Editor.Scripts.Utilities;
-using LJVoyage.LJVNet.Runtime;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using VoyageForge.Bridge.Runtime;
+using VoyageForge.Depot.Editor.Scripts.Utilities;
 
-namespace LJVoyage.Network.Editor
+namespace VoyageForge.Bridge.Editor
 {
     /// <summary>
-    /// LJVNet 项目设置提供器。
+    /// Bridge 项目设置提供器。
     /// 负责在 Project Settings 中展示并维护唯一一份网络配置资源。
     /// </summary>
-    public static class LJVNetProjectSettingsProvider
+    public static class BridgeProjectSettingsProvider
     {
-        private const string SettingsPath = "Project/LJV Net";
+        private const string SettingsPath = "Project/Bridge";
         private const string DefaultConfigDirectory = "Assets/Resources/Config";
-        private const string DefaultConfigAssetPath = DefaultConfigDirectory + "/LJVNetConfig.asset";
-        private const string UxmlPath = "Assets/LJVNet/Editor/Scripts/LJVNetProjectSettingsView.uxml";
-        private const string UssPath = "Assets/LJVNet/Editor/Styles/LJVNetProjectSettings.uss";
+        private const string DefaultConfigAssetPath = DefaultConfigDirectory + "/BridgeConfig.asset";
+        private const string UxmlPath = "Assets/Bridge/Editor/Scripts/BridgeProjectSettingsView.uxml";
+        private const string UssPath = "Assets/Bridge/Editor/Styles/BridgeProjectSettings.uss";
 
         [SettingsProvider]
         public static SettingsProvider CreateSettingsProvider()
         {
             return new SettingsProvider(SettingsPath, SettingsScope.Project)
             {
-                label = "LJV Net",
+                label = "Bridge",
                 activateHandler = (_, rootElement) => BuildUi(rootElement),
-                keywords = new HashSet<string>(new[] { "LJV", "网络", "环境", "端点", "WebApi", "Socket" })
+                keywords = new HashSet<string>(new[] { "Bridge", "网络", "环境", "端点", "WebApi", "Socket" })
             };
         }
 
         /// <summary>
-        /// 打开 LJVNet 项目设置页。
+        /// 打开 Bridge 项目设置页。
         /// </summary>
         public static void OpenSettings()
         {
@@ -46,9 +45,9 @@ namespace LJVoyage.Network.Editor
         /// 查找现有配置；若不存在则自动创建默认配置资源。
         /// </summary>
         /// <returns>网络配置资源；创建失败时返回 <c>null</c>。</returns>
-        public static LJVNetConfigAsset GetOrCreateConfigAsset()
+        public static BridgeConfigAsset GetOrCreateConfigAsset()
         {
-            var config = FindNetConfigAsset();
+            var config = FindBridgeConfigAsset();
             if (config != null)
             {
                 return config;
@@ -57,11 +56,11 @@ namespace LJVoyage.Network.Editor
             EnsureFolderExists("Assets/Resources");
             EnsureFolderExists(DefaultConfigDirectory);
 
-            config = ScriptableObject.CreateInstance<LJVNetConfigAsset>();
+            config = ScriptableObject.CreateInstance<BridgeConfigAsset>();
             AssetDatabase.CreateAsset(config, DefaultConfigAssetPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            return AssetDatabase.LoadAssetAtPath<LJVNetConfigAsset>(DefaultConfigAssetPath);
+            return AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(DefaultConfigAssetPath);
         }
 
         /// <summary>
@@ -106,7 +105,7 @@ namespace LJVoyage.Network.Editor
             var warning = rootElement.Q<TextElement>("MissingAssetText");
             if (warning != null)
             {
-                warning.text = "未能创建或加载 LJVNetConfig 配置资源，请检查 Assets/Resources/Config 目录的写入状态。";
+                warning.text = "未能创建或加载 BridgeConfig 配置资源，请检查 Assets/Resources/Config 目录的写入状态。";
             }
 
             var content = rootElement.Q<VisualElement>("ContentRoot");
@@ -119,7 +118,8 @@ namespace LJVoyage.Network.Editor
         /// <summary>
         /// 绑定顶部环境工具栏。
         /// </summary>
-        private static void BindToolbarSection(VisualElement rootElement, LJVNetConfigAsset config, SerializedObject serializedObject)
+        private static void BindToolbarSection(VisualElement rootElement, BridgeConfigAsset config,
+            SerializedObject serializedObject)
         {
             var currentEnvironmentContainer = rootElement.Q<VisualElement>("CurrentEnvironmentContainer");
             currentEnvironmentContainer.Clear();
@@ -161,7 +161,8 @@ namespace LJVoyage.Network.Editor
         /// <summary>
         /// 绑定环境卡片区域。
         /// </summary>
-        private static void BindEnvironmentCardSection(VisualElement rootElement, LJVNetConfigAsset config, SerializedObject serializedObject)
+        private static void BindEnvironmentCardSection(VisualElement rootElement, BridgeConfigAsset config,
+            SerializedObject serializedObject)
         {
             var cardContainer = rootElement.Q<VisualElement>("EnvironmentCardContainer");
             cardContainer.Clear();
@@ -185,7 +186,7 @@ namespace LJVoyage.Network.Editor
         /// </summary>
         private static VisualElement CreateEnvironmentCard(
             VisualElement rootElement,
-            LJVNetConfigAsset config,
+            BridgeConfigAsset config,
             SerializedObject serializedObject,
             string environmentKey)
         {
@@ -232,7 +233,8 @@ namespace LJVoyage.Network.Editor
             };
             removeEnvironmentButton.AddToClassList("secondary-button");
 
-            bool isReservedEnvironment = string.Equals(environmentKey, LJVNetConfigAsset.ReservedEnvironmentKey, StringComparison.OrdinalIgnoreCase);
+            bool isReservedEnvironment = string.Equals(environmentKey, BridgeConfigAsset.ReservedEnvironmentKey,
+                StringComparison.OrdinalIgnoreCase);
             if (isReservedEnvironment)
             {
                 removeEnvironmentButton.text = "保留环境";
@@ -267,7 +269,8 @@ namespace LJVoyage.Network.Editor
         /// <summary>
         /// 创建单条端点编辑行。
         /// </summary>
-        private static VisualElement CreateEndpointRow(VisualElement rootElement, SerializedObject serializedObject, int index)
+        private static VisualElement CreateEndpointRow(VisualElement rootElement, SerializedObject serializedObject,
+            int index)
         {
             var endpointEntriesProperty = serializedObject.FindProperty("endpointEntries");
             var entryProperty = endpointEntriesProperty.GetArrayElementAtIndex(index);
@@ -284,7 +287,8 @@ namespace LJVoyage.Network.Editor
             {
                 serializedObject.Update();
                 var target = serializedObject.FindProperty("endpointEntries").GetArrayElementAtIndex(index);
-                target.FindPropertyRelative("endpointKey").stringValue = string.IsNullOrWhiteSpace(evt.newValue) ? "default" : evt.newValue.Trim();
+                target.FindPropertyRelative("endpointKey").stringValue =
+                    string.IsNullOrWhiteSpace(evt.newValue) ? "default" : evt.newValue.Trim();
                 Save(serializedObject);
             });
 
@@ -342,16 +346,16 @@ namespace LJVoyage.Network.Editor
         /// <summary>
         /// 全项目搜索现有配置资源。
         /// </summary>
-        private static LJVNetConfigAsset FindNetConfigAsset()
+        private static BridgeConfigAsset FindBridgeConfigAsset()
         {
-            string[] guids = AssetDatabase.FindAssets($"t:{nameof(LJVNetConfigAsset)}");
+            string[] guids = AssetDatabase.FindAssets($"t:{nameof(BridgeConfigAsset)}");
             if (guids == null || guids.Length == 0)
             {
                 return null;
             }
 
             string assetPath = AssetDatabase.GUIDToAssetPath(guids[0]);
-            return AssetDatabase.LoadAssetAtPath<LJVNetConfigAsset>(assetPath);
+            return AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(assetPath);
         }
 
         /// <summary>

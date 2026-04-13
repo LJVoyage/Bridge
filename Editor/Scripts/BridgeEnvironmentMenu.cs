@@ -1,57 +1,57 @@
 ﻿using System;
-using LJVoyage.LJVNet.Runtime;
+using VoyageForge.Bridge.Runtime;
 using UnityEditor;
 using UnityEngine;
 
-namespace LJVoyage.Network.Editor
+namespace VoyageForge.Bridge.Editor
 {
     /// <summary>
-    /// LJVNet 环境快捷切换菜单。
+    /// Bridge 环境快捷切换菜单。
     /// </summary>
-    public static class LJVNetEnvironmentMenu
+    public static class BridgeEnvironmentMenu
     {
-        private const string SettingsMenuPath = "LJV/Network/Net Config";
-        private const string EnvironmentMenuPath = "LJV/Network/Net Environment/选择当前环境";
+        private const string SettingsMenuPath = "VoyageForge/Bridge/Bridge Config";
+        private const string EnvironmentMenuPath = "VoyageForge/Bridge/Bridge Environment/选择当前环境";
 
         [MenuItem(SettingsMenuPath, false, 100)]
         public static void OpenProjectSettings()
         {
-            LJVNetProjectSettingsProvider.OpenSettings();
+            BridgeProjectSettingsProvider.OpenSettings();
         }
 
         [MenuItem(EnvironmentMenuPath, false, 101)]
         private static void ShowEnvironmentMenu()
         {
-            var config = LJVNetProjectSettingsProvider.GetOrCreateConfigAsset();
+            var config = BridgeProjectSettingsProvider.GetOrCreateConfigAsset();
             if (config == null)
             {
-                Debug.LogError("未找到或无法创建 LJVNetConfig 配置资源。请先打开 Project Settings 检查配置。");
+                Debug.LogError("未找到或无法创建 BridgeConfig 配置资源。请先打开 Project Settings 检查配置。");
                 return;
             }
 
-            LJVNetEnvironmentQuickSwitchWindow.Open(config);
+            BridgeEnvironmentQuickSwitchWindow.Open(config);
         }
 
         [MenuItem(EnvironmentMenuPath, true)]
         private static bool ValidateEnvironmentMenu()
         {
-            return LJVNetProjectSettingsProvider.GetOrCreateConfigAsset() != null;
+            return BridgeProjectSettingsProvider.GetOrCreateConfigAsset() != null;
         }
     }
 
     /// <summary>
-    /// LJVNet 环境快速切换窗口。
+    /// Bridge 环境快速切换窗口。
     /// </summary>
-    internal sealed class LJVNetEnvironmentQuickSwitchWindow : EditorWindow
+    internal sealed class BridgeEnvironmentQuickSwitchWindow : EditorWindow
     {
-        private LJVNetConfigAsset config;
+        private BridgeConfigAsset config;
 
         /// <summary>
         /// 打开窗口并绑定配置对象。
         /// </summary>
-        public static void Open(LJVNetConfigAsset config)
+        public static void Open(BridgeConfigAsset config)
         {
-            var window = CreateInstance<LJVNetEnvironmentQuickSwitchWindow>();
+            var window = CreateInstance<BridgeEnvironmentQuickSwitchWindow>();
             window.config = config;
             window.titleContent = new GUIContent("快速切换环境");
             window.minSize = new Vector2(260f, 120f);
@@ -66,10 +66,10 @@ namespace LJVoyage.Network.Editor
         {
             if (config == null)
             {
-                EditorGUILayout.HelpBox("未找到 LJVNetConfig 配置资源。", MessageType.Warning);
+                EditorGUILayout.HelpBox("未找到 BridgeConfig 配置资源。", MessageType.Warning);
                 if (GUILayout.Button("打开配置"))
                 {
-                    LJVNetProjectSettingsProvider.OpenSettings();
+                    BridgeProjectSettingsProvider.OpenSettings();
                     Close();
                 }
 
@@ -100,7 +100,7 @@ namespace LJVoyage.Network.Editor
                             config.EnvironmentKey = environmentKey;
                             EditorUtility.SetDirty(config);
                             AssetDatabase.SaveAssets();
-                            Debug.Log($"LJVNet 当前环境已切换为：{environmentKey}");
+                            Debug.Log($"Bridge 当前环境已切换为：{environmentKey}");
                             Close();
                         }
                     }
@@ -110,7 +110,7 @@ namespace LJVoyage.Network.Editor
             EditorGUILayout.Space(8f);
             if (GUILayout.Button("打开配置面板"))
             {
-                LJVNetProjectSettingsProvider.OpenSettings();
+                BridgeProjectSettingsProvider.OpenSettings();
                 Close();
             }
         }
