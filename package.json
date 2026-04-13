@@ -1,7 +1,7 @@
 {
-  "name": "com.ljvoyage.network",
+  "name": "com.voyage.bridge",
   "version": "1.0.11",
-  "displayName": "LJVoyage Network",
+  "displayName": "Voyage Bridge",
   "description": "A lightweight Unity networking toolkit providing API request management, interceptors, and editor-based configuration.",
   "unity": "2022.3",
   "keywords": [
@@ -9,17 +9,17 @@
     "http",
     "api",
     "unity",
-    "ljvoyage",
+    "voyage",
     "request"
   ],
   "category": "Networking",
   "hideInEditor": false,
   "author": {
-    "name": "LJVoyage",
-    "url": "https://github.com/LJVoyage"
+    "name": "Voyage",
+    "url": "https://github.com/LJVoyage/Bridge"
   },
   "dependencies": {
-    "com.ljvoyage.ljvtoolkit": "1.0.14",
+    "com.ljvoyage.depot": "1.0.14",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.cysharp.unitask": "2.5.10"
   },
