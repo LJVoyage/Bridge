@@ -16,8 +16,10 @@ Bridge 是 VoyageForge 的 Unity 通信连接模块，用来统一连接本地�
   默认的 `Resources` 方案，会在所有 Resources 目录中搜索第一份 `BridgeConfigAsset`。
 - `Runtime/Scripts/Config/BridgeConfigAsset.cs`
   Bridge 的核心配置资源，负责环境与端点地址管理。
-- `Editor/Scripts/BridgeProjectSettingsProvider.cs`
-  Project Settings 面板实现，支持自动搜索或创建主配置资源。
+- `Editor/Scripts/BridgeSettingsProvider.cs`
+  Bridge 的 Project Settings 面板实现，负责展示配置 SO 引用、环境列表和端点编辑界面。
+- `Editor/Scripts/BridgeSettings.cs`
+  Bridge 的编辑器配置，负责把当前项目使用的 `BridgeConfigAsset` 引用保存到 `ProjectSettings/BridgeSettings.asset`。
 - `Editor/Scripts/BridgeEnvironmentMenu.cs`
   编辑器菜单与环境快速切换窗口。
 - `Editor/Scripts/BridgeProjectSettingsView.uxml`
@@ -27,10 +29,10 @@ Bridge 是 VoyageForge 的 Unity 通信连接模块，用来统一连接本地�
 
 ## 配置规则
 ### 环境
-- 新建配置时默认提供 `开发`、`测试`、`生产` 三个环境。
+- 新建配置时默认提供 `dev` 环境。
 - 用户可以自由新增环境。
-- `测试` 作为保底环境会始终保留，不能删除。
-- `测试` 会始终排在环境列表第一项，方便快速切换和兜底排查。
+- `dev` 作为保底环境会始终保留，不能删除。
+- `dev` 会始终排在环境列表第一项，方便快速切换和兜底排查。
 
 ### 端点
 - 每个环境可以维护多条端点配置。
@@ -60,7 +62,7 @@ Bridge 是 VoyageForge 的 Unity 通信连接模块，用来统一连接本地�
 - 使用字符串环境键与端点键管理远程服务入口，避免把地址结构写死在代码里。
 - 配置面板基于 UI Toolkit、UXML、USS 实现，适合在 Unity 编辑器内集中维护。
 - 配置资源会优先全项目搜索；若不存在，则自动创建到 `Assets/Resources/Config/BridgeConfig.asset`。
-- 无论用户如何新增或删除环境，`测试` 都会被强制保留并保持在第一位。
+- 无论用户如何新增或删除环境，`dev` 都会被强制保留并保持在第一位。
 - 如果项目后续扩展新的服务类型，优先新增端点键，而不是继续堆叠专用字段。
 
 ## 维护建议

@@ -15,7 +15,7 @@
                         <ui:TextField name="NewEnvironmentField" label="新增环境" class="toolbar-input" />
                         <ui:Button name="AddEnvironmentButton" text="添加" class="primary-button" />
                     </ui:VisualElement>
-                    <ui:TextElement text="新建配置时默认会带有“开发 / 测试 / 生产”三个环境，后续可以手动删除或继续扩展。测试环境会始终保留。" class="info-banner-text" />
+                    <ui:TextElement text="新建配置时默认会带有 dev 环境，后续可以手动扩展。dev 环境会始终保留并置顶。" class="info-banner-text" />
                 </ui:VisualElement>
                 <ui:VisualElement class="section-card section-card-green">
                     <ui:Label text="环境与链接" class="section-title section-title-green" />

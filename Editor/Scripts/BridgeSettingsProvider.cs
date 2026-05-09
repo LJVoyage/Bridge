@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VoyageForge.Bridge.Runtime;
@@ -14,23 +15,31 @@ namespace VoyageForge.Bridge.Editor
     /// Bridge 项目设置提供器。
     /// 负责在 Project Settings 中展示并维护唯一一份网络配置资源。
     /// </summary>
-    public static class BridgeProjectSettingsProvider
+    public sealed class BridgeSettingsProvider : SettingsProvider
     {
-        private const string SettingsPath = "Project/Bridge";
+        private const string SettingsPath = "Project/VoyageForge/Bridge";
         private const string DefaultConfigDirectory = "Assets/Resources/Config";
         private const string DefaultConfigAssetPath = DefaultConfigDirectory + "/BridgeConfig.asset";
         private const string UxmlPath = "Assets/Bridge/Editor/Scripts/BridgeProjectSettingsView.uxml";
         private const string UssPath = "Assets/Bridge/Editor/Styles/BridgeProjectSettings.uss";
 
+        /// <summary>
+        /// 创建 Bridge 项目设置提供器实例。
+        /// </summary>
+        public BridgeSettingsProvider() : base(SettingsPath, SettingsScope.Project)
+        {
+            label = "Bridge";
+            activateHandler = (_, rootElement) => BuildUi(rootElement);
+            keywords = new HashSet<string>(new[] { "Bridge", "网络", "环境", "端点", "WebApi", "Socket" });
+        }
+
+        /// <summary>
+        /// 注册 Bridge 项目设置页。
+        /// </summary>
         [SettingsProvider]
         public static SettingsProvider CreateSettingsProvider()
         {
-            return new SettingsProvider(SettingsPath, SettingsScope.Project)
-            {
-                label = "Bridge",
-                activateHandler = (_, rootElement) => BuildUi(rootElement),
-                keywords = new HashSet<string>(new[] { "Bridge", "网络", "环境", "端点", "WebApi", "Socket" })
-            };
+            return new BridgeSettingsProvider();
         }
 
         /// <summary>
@@ -47,9 +56,16 @@ namespace VoyageForge.Bridge.Editor
         /// <returns>网络配置资源；创建失败时返回 <c>null</c>。</returns>
         public static BridgeConfigAsset GetOrCreateConfigAsset()
         {
+            var settings = BridgeSettings.instance;
+            if (settings.ConfigAsset != null)
+            {
+                return settings.ConfigAsset;
+            }
+
             var config = FindBridgeConfigAsset();
             if (config != null)
             {
+                settings.SetConfigAsset(config);
                 return config;
             }
 
@@ -60,7 +76,9 @@ namespace VoyageForge.Bridge.Editor
             AssetDatabase.CreateAsset(config, DefaultConfigAssetPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            return AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(DefaultConfigAssetPath);
+            config = AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(DefaultConfigAssetPath);
+            settings.SetConfigAsset(config);
+            return config;
         }
 
         /// <summary>
@@ -86,9 +104,48 @@ namespace VoyageForge.Bridge.Editor
                 return;
             }
 
+            BindConfigAssetSection(rootElement, netConfig);
+
             var configSerializedObject = new SerializedObject(netConfig);
             BindToolbarSection(rootElement, netConfig, configSerializedObject);
             BindEnvironmentCardSection(rootElement, netConfig, configSerializedObject);
+        }
+
+        /// <summary>
+        /// 绑定 Bridge 配置 SO 引用区域。
+        /// </summary>
+        /// <param name="rootElement">Project Settings 根元素。</param>
+        /// <param name="config">当前 Bridge 配置资产。</param>
+        private static void BindConfigAssetSection(VisualElement rootElement, BridgeConfigAsset config)
+        {
+            var contentRoot = rootElement.Q<VisualElement>("ContentRoot");
+            if (contentRoot == null)
+            {
+                return;
+            }
+
+            var section = new VisualElement();
+            section.AddToClassList("section-card");
+
+            var title = new Label("配置资源");
+            title.AddToClassList("section-title");
+            section.Add(title);
+
+            var objectField = new ObjectField("Bridge 配置 SO")
+            {
+                objectType = typeof(BridgeConfigAsset),
+                allowSceneObjects = false,
+                value = config
+            };
+            objectField.AddToClassList("stretch-field");
+            objectField.RegisterValueChangedCallback(evt =>
+            {
+                BridgeSettings.instance.SetConfigAsset(evt.newValue as BridgeConfigAsset);
+                BuildUi(rootElement);
+            });
+            section.Add(objectField);
+
+            contentRoot.Insert(0, section);
         }
 
         /// <summary>
@@ -238,7 +295,7 @@ namespace VoyageForge.Bridge.Editor
             if (isReservedEnvironment)
             {
                 removeEnvironmentButton.text = "保留环境";
-                removeEnvironmentButton.tooltip = "测试环境作为保底环境会始终保留，不能删除。";
+                removeEnvironmentButton.tooltip = "dev 环境作为默认保底环境会始终保留，不能删除。";
                 removeEnvironmentButton.SetEnabled(false);
             }
 

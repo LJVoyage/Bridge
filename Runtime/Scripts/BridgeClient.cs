@@ -30,6 +30,16 @@ namespace VoyageForge.Bridge.Runtime
         private static IBridgeConfig config;
 
         /// <summary>
+        /// 当前是否已经直接设置或成功加载配置对象。
+        /// </summary>
+        public static bool HasConfig => config != null;
+
+        /// <summary>
+        /// 当前是否已经设置配置提供器。
+        /// </summary>
+        public static bool HasConfigProvider => configProvider != null;
+
+        /// <summary>
         /// 手动设置配置提供器实例。
         /// 使用方可以通过该方法决定配置从哪里加载。
         /// </summary>
@@ -57,6 +67,22 @@ namespace VoyageForge.Bridge.Runtime
         public static void SetConfig(IBridgeConfig netConfig)
         {
             config = netConfig ?? throw new ArgumentNullException(nameof(netConfig));
+        }
+
+        /// <summary>
+        /// 在未配置任何来源时设置默认配置提供器。
+        /// 该方法不会覆盖项目已经手动设置的配置或提供器。
+        /// </summary>
+        /// <typeparam name="TProvider">默认提供器类型，必须带无参构造函数。</typeparam>
+        public static void UseDefaultConfigProviderIfMissing<TProvider>()
+            where TProvider : IBridgeConfigProvider, new()
+        {
+            if (HasConfig || HasConfigProvider)
+            {
+                return;
+            }
+
+            SetConfigProvider<TProvider>();
         }
 
         /// <summary>

@@ -53,12 +53,20 @@ namespace VoyageForge.Bridge.Runtime
     public class BridgeConfigAsset : ScriptableObject, IBridgeConfig
     {
         /// <summary>
-        /// 保底环境键。
-        /// 测试环境始终保留，避免所有环境被误删后无法快速恢复。
+        /// 默认保底环境键。
+        /// dev 环境始终保留，避免所有环境被误删后无法快速恢复。
         /// </summary>
-        public const string ReservedEnvironmentKey = "测试";
+        public const string ReservedEnvironmentKey = "dev";
 
-        private static readonly string[] DefaultEnvironmentKeys = { "开发", "测试", "生产" };
+        /// <summary>
+        /// 旧版保底环境键，用于把历史配置迁移到 dev。
+        /// </summary>
+        private const string LegacyReservedEnvironmentKey = "测试";
+
+        /// <summary>
+        /// 新建配置时自动创建的默认环境列表。
+        /// </summary>
+        private static readonly string[] DefaultEnvironmentKeys = { ReservedEnvironmentKey };
         [SerializeField] private string environmentKey;
         [SerializeField] private List<string> environmentKeys = new();
         [SerializeField] private List<EndpointConfig> endpointEntries = new();
@@ -167,7 +175,7 @@ namespace VoyageForge.Bridge.Runtime
 
             if (string.Equals(environmentKey, normalizedKey, StringComparison.OrdinalIgnoreCase))
             {
-                environmentKey = environmentKeys.FirstOrDefault() ?? ReservedEnvironmentKey;
+                environmentKey = ReservedEnvironmentKey;
             }
 
             EnsureReservedEnvironmentFirst();
@@ -250,13 +258,15 @@ namespace VoyageForge.Bridge.Runtime
 
         /// <summary>
         /// 初始化并清理配置数据。
-        /// 新建资源时默认创建“开发 / 测试 / 生产”三个环境，
-        /// 之后不再自动补回，仅强制保留“测试”环境。
+        /// 新建资源时默认创建 dev 环境，
+        /// 之后仅强制保留 dev 环境并让它始终位于第一项。
         /// </summary>
         private void EnsureConfigData()
         {
             environmentKeys ??= new List<string>();
             endpointEntries ??= new List<EndpointConfig>();
+            bool useDefaultEnvironment = string.IsNullOrWhiteSpace(environmentKey) ||
+                string.Equals(environmentKey, LegacyReservedEnvironmentKey, StringComparison.OrdinalIgnoreCase);
 
             if (!defaultsInitialized)
             {
@@ -279,12 +289,13 @@ namespace VoyageForge.Bridge.Runtime
             if (!string.IsNullOrWhiteSpace(environmentKey))
             {
                 AddEnvironmentIfMissing(environmentKey);
+                EnsureReservedEnvironmentFirst();
             }
 
             environmentKey = NormalizeKey(environmentKey);
-            if (string.IsNullOrWhiteSpace(environmentKey) || !ContainsEnvironment(environmentKey))
+            if (useDefaultEnvironment || string.IsNullOrWhiteSpace(environmentKey) || !ContainsEnvironment(environmentKey))
             {
-                environmentKey = environmentKeys.FirstOrDefault() ?? ReservedEnvironmentKey;
+                environmentKey = ReservedEnvironmentKey;
             }
         }
 
@@ -359,21 +370,20 @@ namespace VoyageForge.Bridge.Runtime
         }
 
         /// <summary>
-        /// 确保保底环境始终位于环境列表第一项。
+        /// 确保 dev 保底环境始终位于环境列表第一项。
         /// </summary>
         private void EnsureReservedEnvironmentFirst()
         {
             int reservedIndex = environmentKeys.FindIndex(item =>
                 string.Equals(item, ReservedEnvironmentKey, StringComparison.OrdinalIgnoreCase));
 
-            if (reservedIndex <= 0)
+            if (reservedIndex < 0)
             {
                 return;
             }
 
-            string reservedKey = environmentKeys[reservedIndex];
             environmentKeys.RemoveAt(reservedIndex);
-            environmentKeys.Insert(0, reservedKey);
+            environmentKeys.Insert(0, ReservedEnvironmentKey);
         }
 
         /// <summary>

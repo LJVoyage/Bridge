@@ -16,13 +16,13 @@ namespace VoyageForge.Bridge.Editor
         [MenuItem(SettingsMenuPath, false, 100)]
         public static void OpenProjectSettings()
         {
-            BridgeProjectSettingsProvider.OpenSettings();
+            BridgeSettingsProvider.OpenSettings();
         }
 
         [MenuItem(EnvironmentMenuPath, false, 101)]
         private static void ShowEnvironmentMenu()
         {
-            var config = BridgeProjectSettingsProvider.GetOrCreateConfigAsset();
+            var config = BridgeSettingsProvider.GetOrCreateConfigAsset();
             if (config == null)
             {
                 Debug.LogError("未找到或无法创建 BridgeConfig 配置资源。请先打开 Project Settings 检查配置。");
@@ -35,7 +35,7 @@ namespace VoyageForge.Bridge.Editor
         [MenuItem(EnvironmentMenuPath, true)]
         private static bool ValidateEnvironmentMenu()
         {
-            return BridgeProjectSettingsProvider.GetOrCreateConfigAsset() != null;
+            return BridgeSettingsProvider.GetOrCreateConfigAsset() != null;
         }
     }
 
@@ -69,7 +69,7 @@ namespace VoyageForge.Bridge.Editor
                 EditorGUILayout.HelpBox("未找到 BridgeConfig 配置资源。", MessageType.Warning);
                 if (GUILayout.Button("打开配置"))
                 {
-                    BridgeProjectSettingsProvider.OpenSettings();
+                    BridgeSettingsProvider.OpenSettings();
                     Close();
                 }
 
@@ -110,7 +110,7 @@ namespace VoyageForge.Bridge.Editor
             EditorGUILayout.Space(8f);
             if (GUILayout.Button("打开配置面板"))
             {
-                BridgeProjectSettingsProvider.OpenSettings();
+                BridgeSettingsProvider.OpenSettings();
                 Close();
             }
         }

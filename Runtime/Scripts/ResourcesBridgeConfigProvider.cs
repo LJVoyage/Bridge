@@ -31,7 +31,7 @@ namespace VoyageForge.Bridge.Runtime
 
         /// <summary>
         /// 获取当前环境键。
-        /// 当配置缺失时返回保底环境“开发”。
+        /// 当配置缺失时返回保底环境 dev。
         /// </summary>
         /// <returns>当前环境键。</returns>
         public string GetEnvironment()
@@ -40,7 +40,7 @@ namespace VoyageForge.Bridge.Runtime
             if (config == null)
             {
                 Debug.LogError("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");
-                return "开发";
+                return BridgeConfigAsset.ReservedEnvironmentKey;
             }
 
             return config.EnvironmentKey;
