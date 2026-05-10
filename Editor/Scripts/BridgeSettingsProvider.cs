@@ -18,10 +18,9 @@ namespace VoyageForge.Bridge.Editor
     public sealed class BridgeSettingsProvider : SettingsProvider
     {
         private const string SettingsPath = "Project/VoyageForge/Bridge";
-        private const string DefaultConfigDirectory = "Assets/Resources/Config";
+        private const string DefaultConfigDirectory = "Assets/Resources/VoyageForge/Config";
         private const string DefaultConfigAssetPath = DefaultConfigDirectory + "/BridgeConfig.asset";
         private const string UxmlPath = "Assets/Bridge/Editor/Scripts/BridgeProjectSettingsView.uxml";
-        private const string UssPath = "Assets/Bridge/Editor/Styles/BridgeProjectSettings.uss";
 
         /// <summary>
         /// 创建 Bridge 项目设置提供器实例。
@@ -91,12 +90,6 @@ namespace VoyageForge.Bridge.Editor
             var visualTree = UxmlAssetUtility.LoadVisualTreeAsset(UxmlPath);
             visualTree.CloneTree(rootElement);
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
-            if (styleSheet != null)
-            {
-                rootElement.styleSheets.Add(styleSheet);
-            }
-
             var netConfig = GetOrCreateConfigAsset();
             if (netConfig == null)
             {
@@ -162,7 +155,7 @@ namespace VoyageForge.Bridge.Editor
             var warning = rootElement.Q<TextElement>("MissingAssetText");
             if (warning != null)
             {
-                warning.text = "未能创建或加载 BridgeConfig 配置资源，请检查 Assets/Resources/Config 目录的写入状态。";
+                warning.text = "未能创建或加载 BridgeConfig 配置资源，请检查 Assets/Resources/VoyageForge/Config 目录的写入状态。";
             }
 
             var content = rootElement.Q<VisualElement>("ContentRoot");

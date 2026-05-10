@@ -61,7 +61,7 @@ Bridge 是 VoyageForge 的 Unity 通信连接模块，用来统一连接本地�
 ## 设计说明
 - 使用字符串环境键与端点键管理远程服务入口，避免把地址结构写死在代码里。
 - 配置面板基于 UI Toolkit、UXML、USS 实现，适合在 Unity 编辑器内集中维护。
-- 配置资源会优先全项目搜索；若不存在，则自动创建到 `Assets/Resources/Config/BridgeConfig.asset`。
+- 配置资源会优先全项目搜索；若不存在，则自动创建到 `Assets/Resources/VoyageForge/Config/BridgeConfig.asset`。
 - 无论用户如何新增或删除环境，`dev` 都会被强制保留并保持在第一位。
 - 如果项目后续扩展新的服务类型，优先新增端点键，而不是继续堆叠专用字段。
 

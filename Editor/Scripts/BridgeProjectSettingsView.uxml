@@ -3,7 +3,7 @@
     <ui:ScrollView name="RootScrollView" class="settings-scroll">
         <ui:VisualElement name="Root" class="settings-root">
             <ui:Label text="Bridge 网络配置" class="page-title" />
-            <ui:TextElement text="在这里统一维护当前环境，以及每个环境下的端点键值对。配置资源会优先全项目搜索，若不存在则自动创建到 Assets/Resources/Config。" class="summary-text" />
+            <ui:TextElement text="在这里统一维护当前环境，以及每个环境下的端点键值对。配置资源会优先全项目搜索，若不存在则自动创建到 Assets/Resources/VoyageForge/Config。" class="summary-text" />
             <ui:VisualElement name="MissingAssetMessage" class="warning-banner" style="display: none;">
                 <ui:TextElement name="MissingAssetText" class="warning-banner-text" />
             </ui:VisualElement>
