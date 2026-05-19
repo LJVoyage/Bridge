@@ -9,6 +9,11 @@ namespace VoyageForge.Bridge.Runtime
     public interface IBridgeConfig
     {
         /// <summary>
+        /// 保底环境键。
+        /// </summary>
+        const string DefaultEnvironmentKey = "dev";
+
+        /// <summary>
         /// 获取当前启用的环境键。
         /// </summary>
         string EnvironmentKey { get; }
@@ -28,5 +33,11 @@ namespace VoyageForge.Bridge.Runtime
         /// <param name="query">查询参数。</param>
         /// <returns>完整请求地址。</returns>
         string BuildFullUrl(string endpointKey, string path, Dictionary<string, string> query = null);
+
+        /// <summary>
+        /// 设置当前启用的环境键。
+        /// </summary>
+        /// <param name="environmentKey"></param>
+        void SetEnvironment(string environmentKey = DefaultEnvironmentKey);
     }
 }

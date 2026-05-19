@@ -16,6 +16,6 @@
         /// 获取当前环境键。
         /// </summary>
         /// <returns>当前环境键。</returns>
-        string GetEnvironment();
+        string GetEnvironment(string key = null);
     }
 }

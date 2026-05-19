@@ -13,9 +13,23 @@ namespace VoyageForge.Bridge.Runtime
     [Serializable]
     public class EndpointConfig
     {
+        /// <summary>
+        /// 所属环境键。
+        /// </summary>
         [SerializeField] private string environmentKey;
+
+        /// <summary>
+        /// 端点键。
+        /// </summary>
         [SerializeField] private string endpointKey;
+
+        /// <summary>
+        /// 端点地址。
+        /// </summary>
         [SerializeField] private string url;
+
+        [SerializeField]
+        private string test;
 
         /// <summary>
         /// 获取或设置所属环境键。
@@ -67,6 +81,7 @@ namespace VoyageForge.Bridge.Runtime
         /// 新建配置时自动创建的默认环境列表。
         /// </summary>
         private static readonly string[] DefaultEnvironmentKeys = { ReservedEnvironmentKey };
+
         [SerializeField] private string environmentKey;
         [SerializeField] private List<string> environmentKeys = new();
         [SerializeField] private List<EndpointConfig> endpointEntries = new();
@@ -167,7 +182,8 @@ namespace VoyageForge.Bridge.Runtime
             for (int index = endpointEntries.Count - 1; index >= 0; index--)
             {
                 var entry = endpointEntries[index];
-                if (entry != null && string.Equals(entry.EnvironmentKey, normalizedKey, StringComparison.OrdinalIgnoreCase))
+                if (entry != null &&
+                    string.Equals(entry.EnvironmentKey, normalizedKey, StringComparison.OrdinalIgnoreCase))
                 {
                     endpointEntries.RemoveAt(index);
                 }
@@ -246,6 +262,11 @@ namespace VoyageForge.Bridge.Runtime
             return $"{url}?{string.Join("&", queryParts)}";
         }
 
+        public void SetEnvironment(string environmentKey)
+        {
+            EnvironmentKey =  environmentKey;
+        }
+
         private void OnEnable()
         {
             EnsureConfigData();
@@ -266,7 +287,8 @@ namespace VoyageForge.Bridge.Runtime
             environmentKeys ??= new List<string>();
             endpointEntries ??= new List<EndpointConfig>();
             bool useDefaultEnvironment = string.IsNullOrWhiteSpace(environmentKey) ||
-                string.Equals(environmentKey, LegacyReservedEnvironmentKey, StringComparison.OrdinalIgnoreCase);
+                                         string.Equals(environmentKey, LegacyReservedEnvironmentKey,
+                                             StringComparison.OrdinalIgnoreCase);
 
             if (!defaultsInitialized)
             {
@@ -293,7 +315,8 @@ namespace VoyageForge.Bridge.Runtime
             }
 
             environmentKey = NormalizeKey(environmentKey);
-            if (useDefaultEnvironment || string.IsNullOrWhiteSpace(environmentKey) || !ContainsEnvironment(environmentKey))
+            if (useDefaultEnvironment || string.IsNullOrWhiteSpace(environmentKey) ||
+                !ContainsEnvironment(environmentKey))
             {
                 environmentKey = ReservedEnvironmentKey;
             }

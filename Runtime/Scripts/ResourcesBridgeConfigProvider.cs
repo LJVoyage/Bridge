@@ -15,9 +15,12 @@ namespace VoyageForge.Bridge.Runtime
         /// <returns>网络配置实例。</returns>
         public IBridgeConfig LoadConfig()
         {
-            var configs = Resources.LoadAll<BridgeConfigAsset>(string.Empty);
+            var configs = Resources.LoadAll<BridgeConfigAsset>("VoyageForge/Config/BridgeConfig");
+
+
             if (configs == null || configs.Length == 0)
             {
+                Debug.LogError("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");
                 return null;
             }
 
@@ -29,18 +32,19 @@ namespace VoyageForge.Bridge.Runtime
             return configs.First();
         }
 
+
         /// <summary>
         /// 获取当前环境键。
         /// 当配置缺失时返回保底环境 dev。
         /// </summary>
         /// <returns>当前环境键。</returns>
-        public string GetEnvironment()
+        public string GetEnvironment(string key = null)
         {
             var config = LoadConfig();
             if (config == null)
             {
-                Debug.LogError("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");
-                return BridgeConfigAsset.ReservedEnvironmentKey;
+                throw new System.Exception("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");
+                // return BridgeConfigAsset.ReservedEnvironmentKey;
             }
 
             return config.EnvironmentKey;

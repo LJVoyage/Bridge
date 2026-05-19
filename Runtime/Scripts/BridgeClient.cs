@@ -1,147 +1,247 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
+using VoyageForge.Depot.Runtime.Utilities;
 
 namespace VoyageForge.Bridge.Runtime
 {
-    /// <summary>
-    /// Bridge 客户端入口。
-    /// 当前负责初始化配置与提供简单的网络请求扩展示例。
-    /// </summary>
-    public static class BridgeClient
+    public class BridgeClient : Singleton<BridgeClient>
     {
-        /// <summary>
-        /// 请求发送前回调。
-        /// </summary>
-        public static Action<UnityWebRequest> OnRequest;
+        private IBridgeConfigProvider _configProvider;
+        private IBridgeConfig _config;
 
-        /// <summary>
-        /// 响应成功后的文本处理回调。
-        /// </summary>
-        public static Func<string, string> OnResponse;
+        public const string UrlKey = "BridgeWebApi";
+        public event Action<string> OnError;
 
-        /// <summary>
-        /// 请求失败回调。
-        /// </summary>
-        public static Action<UnityWebRequest> OnError;
-
-        private static IBridgeConfigProvider configProvider;
-        private static IBridgeConfig config;
-
-        /// <summary>
-        /// 当前是否已经直接设置或成功加载配置对象。
-        /// </summary>
-        public static bool HasConfig => config != null;
-
-        /// <summary>
-        /// 当前是否已经设置配置提供器。
-        /// </summary>
-        public static bool HasConfigProvider => configProvider != null;
-
-        /// <summary>
-        /// 手动设置配置提供器实例。
-        /// 使用方可以通过该方法决定配置从哪里加载。
-        /// </summary>
-        /// <param name="provider">配置提供器实例。</param>
-        public static void SetConfigProvider(IBridgeConfigProvider provider)
+        public void Init(IBridgeConfigProvider provider = null)
         {
-            configProvider = provider ?? throw new ArgumentNullException(nameof(provider));
-            config = null;
+            if (_configProvider != null) return;
+
+            provider ??= new ResourcesBridgeConfigProvider();
+
+            _configProvider = provider;
+            _config = _configProvider.LoadConfig();
+            _config.SetEnvironment();
+        }
+
+        public string GetBaseUrl(string key = UrlKey)
+        {
+            return _config.GetBaseUrl(key);
+        }
+
+        public void SetEnvironmentKey(string environmentKey = "")
+        {
+            if (string.IsNullOrEmpty(environmentKey))
+                _config.SetEnvironment();
+            else
+                _config.SetEnvironment(environmentKey);
+        }
+
+        // 全局默认 headers
+        public static Dictionary<string, string> DefaultHeaders { get; set; } = new();
+
+        // 拦截器链
+        private static readonly List<Func<Request, Request>> requestInterceptors = new();
+        private static readonly List<Func<Response<string>, Response<string>>> responseInterceptors = new();
+
+        /// <summary>
+        /// 添加请求拦截器
+        /// </summary>
+        /// <param name="interceptor"></param>
+        public static void UseRequestInterceptor(Func<Request, Request> interceptor)
+        {
+            requestInterceptors.Add(interceptor);
         }
 
         /// <summary>
-        /// 使用泛型方式创建并设置配置提供器。
+        /// 添加响应拦截器
         /// </summary>
-        /// <typeparam name="TProvider">提供器类型，必须带无参构造函数。</typeparam>
-        public static void SetConfigProvider<TProvider>() where TProvider : IBridgeConfigProvider, new()
+        /// <param name="interceptor"></param>
+        public static void UseResponseInterceptor(Func<Response<string>, Response<string>> interceptor)
         {
-            SetConfigProvider(new TProvider());
+            responseInterceptors.Add(interceptor);
         }
 
-        /// <summary>
-        /// 直接设置配置对象。
-        /// 当外部已经自行完成配置加载时，可以跳过提供器。
-        /// </summary>
-        /// <param name="netConfig">网络配置对象。</param>
-        public static void SetConfig(IBridgeConfig netConfig)
-        {
-            config = netConfig ?? throw new ArgumentNullException(nameof(netConfig));
-        }
+      
 
-        /// <summary>
-        /// 在未配置任何来源时设置默认配置提供器。
-        /// 该方法不会覆盖项目已经手动设置的配置或提供器。
-        /// </summary>
-        /// <typeparam name="TProvider">默认提供器类型，必须带无参构造函数。</typeparam>
-        public static void UseDefaultConfigProviderIfMissing<TProvider>()
-            where TProvider : IBridgeConfigProvider, new()
+        #region 核心请求
+
+        public static async Task<Response<T>> SendAsync<T>(Request request)
         {
-            if (HasConfig || HasConfigProvider)
+            // baseURL
+            if (!string.IsNullOrEmpty(Instance._config.GetBaseUrl(UrlKey)) && !request.url.StartsWith("http"))
+                request.url = Instance._config.GetBaseUrl(UrlKey).TrimEnd('/') + "/" + request.url.TrimStart('/');
+
+            // 合并全局 headers
+            request.headers ??= new Dictionary<string, string>();
+            foreach (var kv in DefaultHeaders)
+                if (!request.headers.ContainsKey(kv.Key))
+                    request.headers[kv.Key] = kv.Value;
+
+            // 执行请求拦截器链
+            foreach (var interceptor in requestInterceptors)
+                request = interceptor.Invoke(request);
+
+            using var uwr = new UnityWebRequest(request.url, request.method);
+            uwr.downloadHandler = new DownloadHandlerBuffer();
+
+            // body
+            if (!string.IsNullOrEmpty(request.bodyJson))
             {
-                return;
+                byte[] bodyRaw = Encoding.UTF8.GetBytes(request.bodyJson);
+                uwr.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                uwr.SetRequestHeader("Content-Type", "application/json");
             }
 
-            SetConfigProvider<TProvider>();
+            // headers
+            if (request.headers != null)
+            {
+                foreach (var kv in request.headers)
+                    uwr.SetRequestHeader(kv.Key, kv.Value);
+            }
+
+            var op = uwr.SendWebRequest();
+            float elapsed = 0f;
+            float timeout = request.timeoutSeconds;
+
+            while (!op.isDone)
+            {
+                if (request.cancellationToken.IsCancellationRequested)
+                {
+                    uwr.Abort();
+                    Debug.LogWarning("[BridgeClient] 请求被取消: " + request.url);
+                    return null;
+                }
+
+                if (timeout > 0)
+                {
+                    elapsed += Time.deltaTime;
+                    if (elapsed > timeout)
+                    {
+                        uwr.Abort();
+                        Debug.LogWarning("[BridgeClient] 请求超时: " + request.url);
+                        return null;
+                    }
+                }
+
+                await Task.Yield();
+            }
+
+            var response = new Response<T>
+            {
+              
+                statusCode = (HttpStatusCode)uwr.responseCode,
+                statusText = uwr.result.ToString(),
+                headers = new Dictionary<string, string>()
+            };
+            
+            response.statusCode = (HttpStatusCode)uwr.responseCode;
+          
+            
+            if (uwr.result != UnityWebRequest.Result.Success)
+            {
+                Instance.OnError?.Invoke(uwr.error);
+                return response;
+            }
+
+            string responseText = uwr.downloadHandler.text;
+            T data = default;
+            try
+            {
+                data = JsonUtility.FromJson<T>(responseText);
+            }
+            catch
+            {
+                Instance.OnError?.Invoke(uwr.error);
+            }
+            
+            response.data = data;
+           
+
+            var rawResponse = new Response<string>
+            {
+                data = responseText,
+                statusCode = response.statusCode,
+                statusText = response.statusText,
+                headers = response.headers
+            };
+
+            foreach (var interceptor in responseInterceptors)
+                rawResponse = interceptor.Invoke(rawResponse);
+
+            return response;
         }
 
-        /// <summary>
-        /// 获取当前已加载的网络配置。
-        /// </summary>
-        public static IBridgeConfig Config
+        #endregion
+
+        #region 快捷方法（统一使用 CancellationToken.None 默认值）
+
+        public RequestHandle<T> Get<T>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
-            get
+            var req = new Request
             {
-                Init();
-                return config;
-            }
+                url = url,
+                method = "GET",
+                headers = headers,
+                timeoutSeconds = timeoutSeconds,
+                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
+            };
+            return new RequestHandle<T>(SendAsync<T>(req));
         }
 
-        /// <summary>
-        /// 初始化网络配置。
-        /// 若未直接设置配置对象，则要求使用方先注册配置提供器。
-        /// </summary>
-        public static void Init()
+        public RequestHandle<T> Post<T>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
         {
-            if (config != null)
+            var req = new Request
             {
-                return;
-            }
-
-            if (configProvider == null)
-            {
-                throw new InvalidOperationException("Bridge 尚未设置配置提供器，请先调用 SetConfigProvider 或 SetConfig。");
-            }
-
-            config = configProvider.LoadConfig();
-            if (config == null)
-            {
-                throw new InvalidOperationException($"配置提供器 {configProvider.GetType().FullName} 未返回有效的网络配置。");
-            }
-
-            Debug.Log($"已加载 Bridge 网络配置：{config}");
+                url = url,
+                method = "POST",
+                bodyJson = bodyJson,
+                headers = headers,
+                timeoutSeconds = timeoutSeconds,
+                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
+            };
+            return new RequestHandle<T>(SendAsync<T>(req));
         }
 
-        /// <summary>
-        /// 发送一个测试请求。
-        /// 该方法主要用于验证基础网络链路是否可用。
-        /// </summary>
-        /// <returns>响应文本。</returns>
-        public static async UniTask<string> TestAsync()
+        public RequestHandle<T> Put<T>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
         {
-            using var request = UnityWebRequest.Get("http://google.co.jp");
-            OnRequest?.Invoke(request);
-
-            await request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
+            var req = new Request
             {
-                OnError?.Invoke(request);
-                return request.error;
-            }
-
-            string responseText = request.downloadHandler.text;
-            return OnResponse != null ? OnResponse.Invoke(responseText) : responseText;
+                url = url,
+                method = "PUT",
+                bodyJson = bodyJson,
+                headers = headers,
+                timeoutSeconds = timeoutSeconds,
+                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
+            };
+            return new RequestHandle<T>(SendAsync<T>(req));
         }
+
+        public RequestHandle<T> Delete<T>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            var req = new Request
+            {
+                url = url,
+                method = "DELETE",
+                headers = headers,
+                timeoutSeconds = timeoutSeconds,
+                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
+            };
+            return new RequestHandle<T>(SendAsync<T>(req));
+        }
+
+        #endregion
     }
 }
