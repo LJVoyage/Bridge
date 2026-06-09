@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 using VoyageForge.Depot.Runtime.Utilities;
@@ -151,10 +152,12 @@ namespace VoyageForge.Bridge.Runtime
             }
 
             string responseText = uwr.downloadHandler.text;
+            
             T data = default;
+            
             try
             {
-                data = JsonUtility.FromJson<T>(responseText);
+                data = JsonConvert.DeserializeObject<T>(responseText);
             }
             catch
             {
@@ -180,68 +183,91 @@ namespace VoyageForge.Bridge.Runtime
 
         #endregion
 
-        #region 快捷方法（统一使用 CancellationToken.None 默认值）
+        #region 回调形式
+
+        public static RequestHandle<T> Send<T>(Request request)
+        {
+            return new RequestHandle<T>(SendAsync<T>(request));
+        }
 
         public RequestHandle<T> Get<T>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
-            var req = new Request
-            {
-                url = url,
-                method = "GET",
-                headers = headers,
-                timeoutSeconds = timeoutSeconds,
-                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
-            };
-            return new RequestHandle<T>(SendAsync<T>(req));
+            var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
+            return Send<T>(req);
         }
 
         public RequestHandle<T> Post<T>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
-            var req = new Request
-            {
-                url = url,
-                method = "POST",
-                bodyJson = bodyJson,
-                headers = headers,
-                timeoutSeconds = timeoutSeconds,
-                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
-            };
-            return new RequestHandle<T>(SendAsync<T>(req));
+            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return Send<T>(req);
         }
 
         public RequestHandle<T> Put<T>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
-            var req = new Request
-            {
-                url = url,
-                method = "PUT",
-                bodyJson = bodyJson,
-                headers = headers,
-                timeoutSeconds = timeoutSeconds,
-                cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
-            };
-            return new RequestHandle<T>(SendAsync<T>(req));
+            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return Send<T>(req);
         }
 
         public RequestHandle<T> Delete<T>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
-            var req = new Request
+            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
+            return Send<T>(req);
+        }
+
+        #endregion
+
+        #region Wait 形式
+
+        public static Task<Response<T>> GetAsync<T>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
+            return SendAsync<T>(req);
+        }
+
+        public static Task<Response<T>> PostAsync<T>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return SendAsync<T>(req);
+        }
+
+        public static Task<Response<T>> PutAsync<T>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return SendAsync<T>(req);
+        }
+
+        public static Task<Response<T>> DeleteAsync<T>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
+            return SendAsync<T>(req);
+        }
+
+        #endregion
+
+        private static Request BuildRequest(string url, string method, string bodyJson,
+            Dictionary<string, string> headers, int timeoutSeconds, CancellationToken cancellationToken)
+        {
+            return new Request
             {
                 url = url,
-                method = "DELETE",
+                method = method,
+                bodyJson = bodyJson,
                 headers = headers,
                 timeoutSeconds = timeoutSeconds,
                 cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
             };
-            return new RequestHandle<T>(SendAsync<T>(req));
         }
-
-        #endregion
     }
 }
