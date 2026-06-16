@@ -15,7 +15,9 @@ namespace VoyageForge.Bridge.Runtime
         public string statusText;
         public Dictionary<string, string> headers;
 
-        // 简单判断是否成功
+        /// <summary>
+        /// 简单判断是否成功
+        /// </summary>
         public bool IsSuccessStatusCode => (int)statusCode >= 200 && (int)statusCode < 300;
     }
 }

@@ -60,6 +60,16 @@ namespace VoyageForge.Bridge.Runtime
             requestInterceptors.Add(interceptor);
         }
 
+
+        /// <summary>
+        /// 移除请求拦截器
+        /// </summary>
+        /// <param name="interceptor"></param>
+        public static void RemoveRequestInterceptor(Func<Request, Request> interceptor)
+        {
+            requestInterceptors.Remove(interceptor);
+        }
+
         /// <summary>
         /// 添加响应拦截器
         /// </summary>
@@ -67,6 +77,15 @@ namespace VoyageForge.Bridge.Runtime
         public static void UseResponseInterceptor(Func<Response<string>, Response<string>> interceptor)
         {
             responseInterceptors.Add(interceptor);
+        }
+        
+        /// <summary>
+        /// 移除响应拦截器
+        /// </summary>
+        /// <param name="interceptor"></param>
+        public static void RemoveResponseInterceptor(Func<Response<string>, Response<string>> interceptor)
+        {
+            responseInterceptors.Remove(interceptor);
         }
 
       
