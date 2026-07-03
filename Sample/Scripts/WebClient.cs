@@ -14,7 +14,7 @@ namespace VoyageForge.Bridge.Sample
         /// </summary>
         private readonly ResourcesBridgeConfigProvider _resourcesBridgeConfigProvider = new();
         
-        protected override string urlKey => "WebClient";
+        protected override string urlKey => "default";
         
     }
 }

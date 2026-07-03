@@ -6,7 +6,7 @@ namespace VoyageForge.Bridge.Runtime
 {
     public class RequestHandle<T>
     {
-        private CancellationTokenSource _cts = new();
+        private readonly CancellationTokenSource _cts = new();
 
         public event Action<Response<T>> OnComplete;
         public event Action<Exception> OnError;

@@ -1,7 +1,8 @@
 ﻿using System.Linq;
 using UnityEngine;
+using VoyageForge.Bridge.Runtime;
 
-namespace VoyageForge.Bridge.Runtime
+namespace VoyageForge.Bridge.Sample
 {
     /// <summary>
     /// 从 Resources 中搜索网络配置的默认提供器。
