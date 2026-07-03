@@ -12,36 +12,40 @@ using VoyageForge.Depot.Runtime.Utilities;
 
 namespace VoyageForge.Bridge.Runtime
 {
-    public class BridgeClient : Singleton<BridgeClient>
+    public abstract class BridgeClient<T> : Singleton<T> where T : BridgeClient<T>, new()
     {
-        private IBridgeConfigProvider _configProvider;
-        private IBridgeConfig _config;
+        protected abstract IBridgeConfigProvider ConfigProvider { get; }
 
-        public const string UrlKey = "BridgeWebApi";
-        public event Action<string> OnError;
-
-        public void Init(IBridgeConfigProvider provider = null)
+        private IBridgeConfig Config
         {
-            if (_configProvider != null) return;
-
-            provider ??= new ResourcesBridgeConfigProvider();
-
-            _configProvider = provider;
-            _config = _configProvider.LoadConfig();
-            _config.SetEnvironment();
+            get
+            {
+                _config ??= ConfigProvider.LoadConfig();
+                return _config;
+            }
         }
 
-        public string GetBaseUrl(string key = UrlKey)
+
+        private IBridgeConfig _config;
+
+        public static string UrlKey => Instance.urlKey;
+
+        protected virtual string urlKey => "BridgeWebApi";
+
+        public event Action<string> OnError;
+
+
+        public string GetBaseUrl(string key)
         {
-            return _config.GetBaseUrl(key);
+            return Config.GetBaseUrl(key);
         }
 
         public void SetEnvironmentKey(string environmentKey = "")
         {
             if (string.IsNullOrEmpty(environmentKey))
-                _config.SetEnvironment();
+                Config.SetEnvironment();
             else
-                _config.SetEnvironment(environmentKey);
+                Config.SetEnvironment(environmentKey);
         }
 
         // 全局默认 headers
@@ -78,7 +82,7 @@ namespace VoyageForge.Bridge.Runtime
         {
             responseInterceptors.Add(interceptor);
         }
-        
+
         /// <summary>
         /// 移除响应拦截器
         /// </summary>
@@ -88,15 +92,14 @@ namespace VoyageForge.Bridge.Runtime
             responseInterceptors.Remove(interceptor);
         }
 
-      
 
         #region 核心请求
 
-        public static async Task<Response<T>> SendAsync<T>(Request request)
+        public static async Task<Response<R>> SendAsync<R>(Request request)
         {
             // baseURL
-            if (!string.IsNullOrEmpty(Instance._config.GetBaseUrl(UrlKey)) && !request.url.StartsWith("http"))
-                request.url = Instance._config.GetBaseUrl(UrlKey).TrimEnd('/') + "/" + request.url.TrimStart('/');
+            if (!string.IsNullOrEmpty(Instance.Config.GetBaseUrl(UrlKey)) && !request.url.StartsWith("http"))
+                request.url = Instance.Config.GetBaseUrl(UrlKey).TrimEnd('/') + "/" + request.url.TrimStart('/');
 
             // 合并全局 headers
             request.headers ??= new Dictionary<string, string>();
@@ -153,17 +156,16 @@ namespace VoyageForge.Bridge.Runtime
                 await Task.Yield();
             }
 
-            var response = new Response<T>
+            var response = new Response<R>
             {
-              
                 statusCode = (HttpStatusCode)uwr.responseCode,
                 statusText = uwr.result.ToString(),
                 headers = new Dictionary<string, string>()
             };
-            
+
             response.statusCode = (HttpStatusCode)uwr.responseCode;
-          
-            
+
+
             if (uwr.result != UnityWebRequest.Result.Success)
             {
                 Instance.OnError?.Invoke(uwr.error);
@@ -171,20 +173,20 @@ namespace VoyageForge.Bridge.Runtime
             }
 
             string responseText = uwr.downloadHandler.text;
-            
-            T data = default;
-            
+
+            R data = default;
+
             try
             {
-                data = JsonConvert.DeserializeObject<T>(responseText);
+                data = JsonConvert.DeserializeObject<R>(responseText);
             }
             catch
             {
                 Instance.OnError?.Invoke(uwr.error);
             }
-            
+
             response.data = data;
-           
+
 
             var rawResponse = new Response<string>
             {
@@ -204,73 +206,73 @@ namespace VoyageForge.Bridge.Runtime
 
         #region 回调形式
 
-        public static RequestHandle<T> Send<T>(Request request)
+        public static RequestHandle<R> Send<R>(Request request)
         {
-            return new RequestHandle<T>(SendAsync<T>(request));
+            return new RequestHandle<R>(SendAsync<R>(request));
         }
 
-        public RequestHandle<T> Get<T>(string url, Dictionary<string, string> headers = null,
+        public RequestHandle<R> Get<R>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
-            return Send<T>(req);
+            return Send<R>(req);
         }
 
-        public RequestHandle<T> Post<T>(string url, string bodyJson,
+        public RequestHandle<R> Post<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<T>(req);
+            return Send<R>(req);
         }
 
-        public RequestHandle<T> Put<T>(string url, string bodyJson,
+        public RequestHandle<R> Put<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<T>(req);
+            return Send<R>(req);
         }
 
-        public RequestHandle<T> Delete<T>(string url, Dictionary<string, string> headers = null,
+        public RequestHandle<R> Delete<R>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
-            return Send<T>(req);
+            return Send<R>(req);
         }
 
         #endregion
 
         #region Wait 形式
 
-        public static Task<Response<T>> GetAsync<T>(string url, Dictionary<string, string> headers = null,
+        public static Task<Response<R>> GetAsync<R>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<T>(req);
+            return SendAsync<R>(req);
         }
 
-        public static Task<Response<T>> PostAsync<T>(string url, string bodyJson,
+        public static Task<Response<R>> PostAsync<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<T>(req);
+            return SendAsync<R>(req);
         }
 
-        public static Task<Response<T>> PutAsync<T>(string url, string bodyJson,
+        public static Task<Response<R>> PutAsync<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<T>(req);
+            return SendAsync<R>(req);
         }
 
-        public static Task<Response<T>> DeleteAsync<T>(string url, Dictionary<string, string> headers = null,
+        public static Task<Response<R>> DeleteAsync<R>(string url, Dictionary<string, string> headers = null,
             int timeoutSeconds = 30, CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<T>(req);
+            return SendAsync<R>(req);
         }
 
         #endregion
