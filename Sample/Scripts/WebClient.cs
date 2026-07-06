@@ -12,7 +12,7 @@ namespace VoyageForge.Bridge.Sample
         /// <summary>
         /// 从resources 中 加载 配置文件
         /// </summary>
-        private readonly ResourcesBridgeConfigProvider _resourcesBridgeConfigProvider = new();
+        private readonly ResourcesBridgeConfigProvider _resourcesBridgeConfigProvider = new("VoyageForge/Config/BridgeConfig");
         
         protected override string urlKey => "default";
         

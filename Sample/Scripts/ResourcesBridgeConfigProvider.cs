@@ -11,14 +11,25 @@ namespace VoyageForge.Bridge.Sample
     public class ResourcesBridgeConfigProvider : IBridgeConfigProvider
     {
         /// <summary>
+        /// 配置资源路径。
+        /// </summary>
+        private readonly string _path;
+        
+        public ResourcesBridgeConfigProvider(string path){
+            _path = path;
+        }
+        
+       
+        
+        /// <summary>
         /// 从所有 Resources 目录中搜索第一份网络配置资源。
         /// </summary>
         /// <returns>网络配置实例。</returns>
         public IBridgeConfig LoadConfig()
         {
-            var configs = Resources.LoadAll<BridgeConfigAsset>("VoyageForge/Config/BridgeConfig");
+            var configs = Resources.LoadAll<BridgeConfigAsset>(_path);
 
-
+            
             if (configs == null || configs.Length == 0)
             {
                 Debug.LogError("未在 Resources 目录中搜索到 BridgeConfig 配置资源。");

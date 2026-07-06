@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -97,27 +97,10 @@ namespace VoyageForge.Bridge.Runtime
 
         public static async Task<Response<R>> SendAsync<R>(Request request)
         {
-            var baseUrl = string.Empty;
-            
-            if (request == null)
-                throw new ArgumentNullException(nameof(request));
-
-            if (string.IsNullOrEmpty(request.endpointKey))
-            {
-                baseUrl = Instance.Config.GetBaseUrl(UrlKey);
-            }
-            else
-            {
-                baseUrl = Instance.Config.GetBaseUrl(request.endpointKey);
-               
-            }
-            
-            if (string.IsNullOrEmpty(baseUrl))
-                throw new ArgumentException($"未配置 {request.endpointKey} 的 baseURL");
-            
             // baseURL
-            if (!string.IsNullOrEmpty(baseUrl) && !request.url.StartsWith("http"))
-                request.url = Instance.Config.GetBaseUrl(UrlKey).TrimEnd('/') + "/" + request.url.TrimStart('/');
+            if (!request.url.StartsWith("http"))
+                request.url = Instance.Config.GetBaseUrl(request.endpointKey).TrimEnd('/') + "/" +
+                              request.url.TrimStart('/');
 
             // 合并全局 headers
             request.headers ??= new Dictionary<string, string>();
@@ -236,36 +219,19 @@ namespace VoyageForge.Bridge.Runtime
             return Send<R>(req);
         }
 
-        public static RequestHandle<R> Post<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Put<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Delete<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        // 指定端点 key 的重载
-
         public static RequestHandle<R> Get<R>(string url, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken, endpointKey);
+            return Send<R>(req);
+        }
+
+        public static RequestHandle<R> Post<R>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
             return Send<R>(req);
         }
 
@@ -277,11 +243,26 @@ namespace VoyageForge.Bridge.Runtime
             return Send<R>(req);
         }
 
+        public static RequestHandle<R> Put<R>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return Send<R>(req);
+        }
+
         public static RequestHandle<R> Put<R>(string url, string bodyJson, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
+            return Send<R>(req);
+        }
+
+        public static RequestHandle<R> Delete<R>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
             return Send<R>(req);
         }
 
@@ -304,36 +285,19 @@ namespace VoyageForge.Bridge.Runtime
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> PostAsync<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<R>(req);
-        }
-
-        public static Task<Response<R>> PutAsync<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<R>(req);
-        }
-
-        public static Task<Response<R>> DeleteAsync<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
-            return SendAsync<R>(req);
-        }
-
-        // 指定端点 key 的重载
-
         public static Task<Response<R>> GetAsync<R>(string url, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken, endpointKey);
+            return SendAsync<R>(req);
+        }
+
+        public static Task<Response<R>> PostAsync<R>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
@@ -345,11 +309,26 @@ namespace VoyageForge.Bridge.Runtime
             return SendAsync<R>(req);
         }
 
+        public static Task<Response<R>> PutAsync<R>(string url, string bodyJson,
+            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
+            return SendAsync<R>(req);
+        }
+
         public static Task<Response<R>> PutAsync<R>(string url, string bodyJson, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
             CancellationToken cancellationToken = default)
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
+            return SendAsync<R>(req);
+        }
+
+        public static Task<Response<R>> DeleteAsync<R>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
@@ -374,7 +353,7 @@ namespace VoyageForge.Bridge.Runtime
                 bodyJson = bodyJson,
                 headers = headers,
                 timeoutSeconds = timeoutSeconds,
-                endpointKey = endpointKey,
+                endpointKey = endpointKey ?? Instance.Config.EnvironmentKey,
                 cancellationToken = cancellationToken == default ? CancellationToken.None : cancellationToken
             };
         }
