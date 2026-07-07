@@ -11,13 +11,15 @@ namespace VoyageForge.Bridge.Sample
         {
             await TestDefaultEndpoint();
             await TestCustomEndpoint();
+            await TestFullUrl();
         }
 
         private async Task TestDefaultEndpoint()
         {
             Debug.Log("=== Test 1: 默认端点 (不指定 endpointKey) ===");
 
-            var response = await WebClient.GetAsync<UserDto>("https://jsonplaceholder.typicode.com/users/1");
+
+            var response = await GetUserAsync("1");
 
             if (response != null && response.IsSuccessStatusCode)
             {
@@ -35,10 +37,11 @@ namespace VoyageForge.Bridge.Sample
 
             var request = new Request
             {
-                url = "https://httpbin.org/get",
+                url = "get",
                 method = "GET",
                 endpointKey = "webapi"
             };
+            
             var response = await WebClient.SendAsync<HttpBinDto>(request);
 
             if (response != null && response.IsSuccessStatusCode)
@@ -50,7 +53,41 @@ namespace VoyageForge.Bridge.Sample
                 Debug.LogWarning($"[自定义端点 webapi] 请求失败: {response?.statusCode}");
             }
         }
+
+        private async Task TestFullUrl()
+        {
+            Debug.Log("=== Test 3: 完整 URL (不拼接 baseUrl) ===");
+
+            var request = new Request
+            {
+                url = "https://jsonplaceholder.typicode.com/posts/1",
+                method = "GET"
+            };
+
+            var response = await WebClient.SendAsync<PostDto>(request);
+
+            if (response != null && response.IsSuccessStatusCode)
+            {
+                Debug.Log($"[完整 URL] 请求成功: id={response.data?.id}, title={response.data?.title}");
+            }
+            else
+            {
+                Debug.LogWarning($"[完整 URL] 请求失败: {response?.statusCode}");
+            }
+        }
+
+        public async Task<Response<UserDto>> GetUserAsync(string userId)
+        {
+            var request = new Request()
+            {
+                url = $"/users/{userId}",
+                method = "GET",
+            };
+
+            return await WebClient.SendAsync<UserDto>(request);
+        }
     }
+
 
     public class UserDto
     {
@@ -61,5 +98,11 @@ namespace VoyageForge.Bridge.Sample
     public class HttpBinDto
     {
         public string url { get; set; }
+    }
+
+    public class PostDto
+    {
+        public int id { get; set; }
+        public string title { get; set; }
     }
 }

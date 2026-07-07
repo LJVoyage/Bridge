@@ -97,7 +97,7 @@ namespace VoyageForge.Bridge.Runtime
 
         public static async Task<Response<R>> SendAsync<R>(Request request)
         {
-            // baseURL
+            // 判断是否需要添加 baseURL 前缀
             if (!request.url.StartsWith("http"))
                 request.url = Instance.Config.GetBaseUrl(request.endpointKey).TrimEnd('/') + "/" +
                               request.url.TrimStart('/');

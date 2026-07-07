@@ -18,10 +18,10 @@ MonoBehaviour:
   endpointEntries:
   - environmentKey: dev
     endpointKey: default
-    url: https://default-api.example.com
+    url: https://jsonplaceholder.typicode.com
     test: 
   - environmentKey: dev
     endpointKey: webapi
-    url: https://another-api.example.com
+    url: https://httpbin.org
     test: 
   defaultsInitialized: 1

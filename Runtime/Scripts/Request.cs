@@ -14,7 +14,7 @@ namespace VoyageForge.Bridge.Runtime
         /// <summary>
         /// 指定使用的端点 key，若为 null 则使用 BridgeClient 子类的默认端点。
         /// </summary>
-        public string endpointKey;
+        public string endpointKey = "default";
 
         // 默认使用 CancellationToken.None
         public CancellationToken cancellationToken = CancellationToken.None;

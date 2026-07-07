@@ -1,0 +1,20 @@
+{
+    "name": "VoyageForge.Bridge.Tests.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "VoyageForge.Bridge.Runtime",
+        "VoyageForge.Depot.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

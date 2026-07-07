@@ -23,5 +23,12 @@
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.cysharp.unitask": "2.5.10"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "samples": [
+    {
+      "displayName": "Basic",
+      "description": "Demonstrates BridgeClient multi-endpoint usage with default endpoint, custom endpoint, and full URL scenarios.",
+      "path": "Samples~/Basic"
+    }
+  ]
 }
