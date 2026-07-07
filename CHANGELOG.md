@@ -1,3 +1,5 @@
+## v0.0.4
+- Initial release
 ## v0.0.3
 - chore(bridge): set version to 0.0.3
 - 修复uss 丢失错误## v0.0.2
