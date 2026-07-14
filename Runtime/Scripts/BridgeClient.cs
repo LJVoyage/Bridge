@@ -16,7 +16,7 @@ namespace VoyageForge.Bridge.Runtime
     {
         protected abstract IBridgeConfigProvider ConfigProvider { get; }
 
-        private IBridgeConfig Config
+        public IBridgeConfig Config
         {
             get
             {
