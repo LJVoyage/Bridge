@@ -1,4 +1,5 @@
-## v0.0.4
+## v0.0.5
+- chore(bridge): set version to 0.0.5## v0.0.4
 - Initial release
 ## v0.0.3
 - chore(bridge): set version to 0.0.3
