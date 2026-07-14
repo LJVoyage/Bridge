@@ -1,4 +1,7 @@
-## v0.0.5
+## v0.0.6
+- chore(bridge): set version to 0.0.6
+- Merge branch 'dev'
+- chore: update Runtime asmdef references## v0.0.5
 - chore(bridge): set version to 0.0.5## v0.0.4
 - Initial release
 ## v0.0.3
