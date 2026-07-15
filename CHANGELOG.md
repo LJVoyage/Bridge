@@ -1,4 +1,7 @@
-## v0.0.6
+## v0.0.4
+- chore(bridge): set version to 0.0.4
+- Merge dev into main - resolve dependency version conflict
+- chore: bump dependencies and hideInEditor## v0.0.6
 - chore(bridge): set version to 0.0.6
 - Merge branch 'dev'
 - chore: update Runtime asmdef references## v0.0.5
