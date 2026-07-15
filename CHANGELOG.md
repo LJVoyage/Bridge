@@ -1,0 +1,10 @@
+## v0.0.7
+- chore(bridge): set version to 0.0.7
+- Merge dev into main
+- chore: bump dependencies and hideInEditor
+- ci: add version guard to prevent rollback on main
+- fix: restore version to 0.0.6 after accidental rollback
+- chore(bridge): update changelog for v0.0.4
+- chore(bridge): set version to 0.0.4
+- Merge dev into main - resolve dependency version conflict
+- chore: bump dependencies and hideInEditor
