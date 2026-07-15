@@ -1,4 +1,5 @@
-## v0.0.7
+## v0.0.8
+- chore(bridge): set version to 0.0.8## v0.0.7
 - chore(bridge): set version to 0.0.7
 - Merge dev into main
 - chore: bump dependencies and hideInEditor
