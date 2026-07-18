@@ -2,7 +2,8 @@
 {
     /// <summary>
     /// Bridge 网络配置提供器接口。
-    /// 用于按约定加载配置资源并返回当前环境。
+    /// 负责加载、保存配置以及返回当前环境。
+    /// 每个实现自行管理配置文件的路径和格式（Resources/ScriptableObject、StreamingAssets/JSON 等）。
     /// </summary>
     public interface IBridgeConfigProvider
     {
@@ -11,6 +12,12 @@
         /// </summary>
         /// <returns>网络配置实例。</returns>
         IBridgeConfig LoadConfig();
+
+        /// <summary>
+        /// 保存网络配置对象。
+        /// </summary>
+        /// <param name="config">网络配置实例。</param>
+        void SaveConfig(IBridgeConfig config);
 
         /// <summary>
         /// 获取当前环境键。

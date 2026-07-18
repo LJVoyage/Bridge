@@ -6,34 +6,33 @@ namespace VoyageForge.Bridge.Editor
 {
     /// <summary>
     /// Bridge 编辑器配置。
-    /// 用于在 Project Settings 中保存当前项目使用的 Bridge 配置 SO 引用。
+    /// 在 ProjectSettings 中保存配置资产引用和提供器选择。
     /// </summary>
     [FilePath("ProjectSettings/BridgeSettings.asset", FilePathAttribute.Location.ProjectFolder)]
     public sealed class BridgeSettings : ScriptableSingleton<BridgeSettings>
     {
-        /// <summary>
-        /// 当前项目使用的 Bridge 配置资产。
-        /// </summary>
         [SerializeField] private BridgeConfigAsset configAsset;
+        [SerializeField] private string configProviderTypeName;
 
-        /// <summary>
-        /// 当前项目使用的 Bridge 配置资产。
-        /// </summary>
         public BridgeConfigAsset ConfigAsset => configAsset;
 
         /// <summary>
-        /// 设置当前项目使用的 Bridge 配置资产。
+        /// 选中的 IBridgeConfigProvider 类型名，空表示未选择。
         /// </summary>
-        /// <param name="asset">Bridge 配置资产。</param>
+        public string ConfigProviderTypeName => configProviderTypeName;
+
         public void SetConfigAsset(BridgeConfigAsset asset)
         {
             configAsset = asset;
             SaveSettings();
         }
 
-        /// <summary>
-        /// 保存 Bridge 编辑器配置到 ProjectSettings。
-        /// </summary>
+        public void SetConfigProviderType(string typeName)
+        {
+            configProviderTypeName = typeName;
+            SaveSettings();
+        }
+
         public void SaveSettings()
         {
             Save(true);

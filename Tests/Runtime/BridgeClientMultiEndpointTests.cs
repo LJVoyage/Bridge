@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -9,19 +10,19 @@ namespace VoyageForge.Bridge.Tests.Runtime
 {
     internal class TestBridgeConfig : IBridgeConfig
     {
-        public string EnvironmentKey => "test";
-
-        private readonly System.Collections.Generic.Dictionary<string, string> _endpoints = new()
+        public string EnvironmentKey { get; set; } = "test";
+        public List<string> EnvironmentKeys { get; } = new List<string> { "test" };
+        public List<EndpointConfig> Endpoints { get; } = new List<EndpointConfig>
         {
-            { "default", "https://jsonplaceholder.typicode.com" },
-            { "webapi", "https://httpbin.org" }
+            new EndpointConfig { EnvironmentKey = "test", EndpointKey = "default", Url = "https://jsonplaceholder.typicode.com" },
+            new EndpointConfig { EnvironmentKey = "test", EndpointKey = "webapi", Url = "https://httpbin.org" }
         };
 
         public string GetBaseUrl(string endpointKey)
         {
-            if (string.IsNullOrEmpty(endpointKey))
-                endpointKey = "default";
-            return _endpoints.TryGetValue(endpointKey, out var url) ? url : _endpoints["default"];
+            if (string.IsNullOrEmpty(endpointKey)) endpointKey = "default";
+            var match = Endpoints.FirstOrDefault(e => e.EndpointKey == endpointKey);
+            return match?.Url ?? Endpoints.First(e => e.EndpointKey == "default").Url;
         }
 
         public string BuildFullUrl(string endpointKey, string path, System.Collections.Generic.Dictionary<string, string> query = null)
@@ -29,14 +30,15 @@ namespace VoyageForge.Bridge.Tests.Runtime
             var baseUrl = GetBaseUrl(endpointKey).TrimEnd('/');
             var url = baseUrl + "/" + path.TrimStart('/');
             if (query != null && query.Count > 0)
-            {
-                var queryString = string.Join("&", query.Select(kv => $"{kv.Key}={kv.Value}"));
-                url += "?" + queryString;
-            }
+                url += "?" + string.Join("&", query.Select(kv => $"{kv.Key}={kv.Value}"));
             return url;
         }
 
-        public void SetEnvironment(string environmentKey = null) { }
+        public void SetEnvironment(string environmentKey = null)
+        {
+            if (!string.IsNullOrWhiteSpace(environmentKey))
+                EnvironmentKey = environmentKey;
+        }
     }
 
     internal class TestBridgeConfigProvider : IBridgeConfigProvider
@@ -44,6 +46,11 @@ namespace VoyageForge.Bridge.Tests.Runtime
         private readonly TestBridgeConfig _config = new();
 
         public IBridgeConfig LoadConfig() => _config;
+
+        public void SaveConfig(IBridgeConfig config)
+        {
+            // 测试提供器为内存实现，无需持久化
+        }
 
         public string GetEnvironment(string key = null) => _config.EnvironmentKey;
     }
