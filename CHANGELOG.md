@@ -1,4 +1,19 @@
-## v0.0.8
+## v0.0.9
+- chore(bridge): set version to 0.0.9
+- Refactor publish workflow for versioning and changelog
+- chore: sync main back to dev
+- chore: merge dev into main
+- revert: rollback publish-bridge.yml to before 0a8c4b8
+- Rename publish-bridge.yml to publish.yml
+- add publish
+- remove publish-bridge.yml
+- 改进 publish-bridge.yml 的工作流程步骤
+- chore: sync main back to dev
+- chore: update LICENSE
+- Merge pull request #1 from VoyageForge/dev
+- 为 GitHub Actions 添加版本控制工作流
+- 通过版本控制和本地化增强发布流程
+- feat: add JSON config support and editor provider selection## v0.0.8
 - chore(bridge): set version to 0.0.8## v0.0.7
 - chore(bridge): set version to 0.0.7
 - Merge dev into main
