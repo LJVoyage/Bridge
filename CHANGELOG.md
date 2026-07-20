@@ -1,30 +1,11 @@
-## v0.0.3
-- chore(bridge): set version to 0.0.3
-- 修复uss 丢失错误## v0.0.2
-- Initial release
-## v1.0.11
-- chore: set version to 1.0.11
-- 修正版本号
-- Merge branch 'main' of github.com:LJVoyage/LJVNet
-- 添加projectsetting
-- add gitignore## v1.0.10
-- chore: set version to 1.0.10
-- 修正 Provider 缓存错误## v1.0.9
-- chore: set version to 1.0.9
-- 调整配置文件
-- 调整配置文件
-- Merge remote-tracking branch 'origin/main'
-- 添加 json 库依赖
-- 包装request## v1.0.8
-- chore: set version to 1.0.8## v1.0.7
-- chore: set version to 1.0.7
-- Remove OpenUPM build trigger from workflow## v1.0.6
-- chore: set version to 1.0.6
-- Update workflow for changelog and GitHub release## v1.0.5
-- chore: set version to 1.0.5
-- Add manual or auto version changelog workflow
-- chore: sync version and dependency## [1.0.0] - 2025-10-21
-
-
-
----
+## v0.0.8
+- chore(bridge): set version to 0.0.8## v0.0.7
+- chore(bridge): set version to 0.0.7
+- Merge dev into main
+- chore: bump dependencies and hideInEditor
+- ci: add version guard to prevent rollback on main
+- fix: restore version to 0.0.6 after accidental rollback
+- chore(bridge): update changelog for v0.0.4
+- chore(bridge): set version to 0.0.4
+- Merge dev into main - resolve dependency version conflict
+- chore: bump dependencies and hideInEditor
