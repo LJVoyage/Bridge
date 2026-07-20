@@ -7,59 +7,6 @@ using UnityEngine.Networking;
 namespace VoyageForge.Bridge.Runtime
 {
     /// <summary>
-    /// 单条端点配置。
-    /// 一个环境可以配置多条端点，例如 default、webapi、socket。
-    /// </summary>
-    [Serializable]
-    public class EndpointConfig
-    {
-        /// <summary>
-        /// 所属环境键。
-        /// </summary>
-        [SerializeField] private string environmentKey;
-
-        /// <summary>
-        /// 端点键。
-        /// </summary>
-        [SerializeField] private string endpointKey;
-
-        /// <summary>
-        /// 端点地址。
-        /// </summary>
-        [SerializeField] private string url;
-
-        [SerializeField]
-        private string test;
-
-        /// <summary>
-        /// 获取或设置所属环境键。
-        /// </summary>
-        public string EnvironmentKey
-        {
-            get => environmentKey;
-            set => environmentKey = value;
-        }
-
-        /// <summary>
-        /// 获取或设置端点键。
-        /// </summary>
-        public string EndpointKey
-        {
-            get => endpointKey;
-            set => endpointKey = value;
-        }
-
-        /// <summary>
-        /// 获取或设置端点地址。
-        /// </summary>
-        public string Url
-        {
-            get => url;
-            set => url = value;
-        }
-    }
-
-    /// <summary>
     /// Bridge 网络配置资源。
     /// 使用字符串环境键管理多环境、多端点地址。
     /// </summary>
@@ -217,6 +164,42 @@ namespace VoyageForge.Bridge.Runtime
                 EndpointKey = "default",
                 Url = string.Empty
             });
+        }
+
+        // ============================================================
+        // 编辑方法（编辑器通过 IBridgeConfig 接口调用）
+        // ============================================================
+
+        /// <summary>
+        /// 删除指定环境下的第 localIndex 条端点。
+        /// </summary>
+        public void RemoveEndpoint(string environmentKey, int localIndex)
+        {
+            EnsureConfigData();
+            int n = 0;
+            for (int i = 0; i < endpointEntries.Count; i++)
+            {
+                var e = endpointEntries[i];
+                if (e != null && string.Equals(e.EnvironmentKey, environmentKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (n == localIndex) { endpointEntries.RemoveAt(i); return; }
+                    n++;
+                }
+            }
+        }
+
+        // ============================================================
+        // 显式接口实现（IBridgeConfig.EnvironmentKeys / Endpoints 要求 List<>）
+        // ============================================================
+
+        List<string> IBridgeConfig.EnvironmentKeys
+        {
+            get { EnsureConfigData(); return environmentKeys; }
+        }
+
+        List<EndpointConfig> IBridgeConfig.Endpoints
+        {
+            get { EnsureConfigData(); return endpointEntries; }
         }
 
         /// <summary>

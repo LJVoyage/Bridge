@@ -1,0 +1,21 @@
+{
+  "environmentKey": "dev",
+  "environmentKeys": ["dev", "staging", "production"],
+  "endpoints": [
+    {
+      "environmentKey": "dev",
+      "endpointKey": "default",
+      "url": "https://dev-api.example.com"
+    },
+    {
+      "environmentKey": "staging",
+      "endpointKey": "default",
+      "url": "https://staging-api.example.com"
+    },
+    {
+      "environmentKey": "production",
+      "endpointKey": "default",
+      "url": "https://api.example.com"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,10 +11,6 @@ using VoyageForge.Depot.Editor.Scripts.Utilities;
 
 namespace VoyageForge.Bridge.Editor
 {
-    /// <summary>
-    /// Bridge 项目设置提供器。
-    /// 负责在 Project Settings 中展示并维护唯一一份网络配置资源。
-    /// </summary>
     public sealed class BridgeSettingsProvider : SettingsProvider
     {
         private const string SettingsPath = "Project/VoyageForge/Bridge";
@@ -22,438 +18,322 @@ namespace VoyageForge.Bridge.Editor
         private const string DefaultConfigAssetPath = DefaultConfigDirectory + "/BridgeConfig.asset";
         private const string UxmlPath = "Assets/Bridge/Editor/Scripts/BridgeProjectSettingsView.uxml";
 
-        /// <summary>
-        /// 创建 Bridge 项目设置提供器实例。
-        /// </summary>
         public BridgeSettingsProvider() : base(SettingsPath, SettingsScope.Project)
         {
             label = "Bridge";
             activateHandler = (_, rootElement) => BuildUi(rootElement);
-            keywords = new HashSet<string>(new[] { "Bridge", "网络", "环境", "端点", "WebApi", "Socket" });
+            keywords = new HashSet<string>(new[] { "Bridge", "网络", "环境", "端点" });
         }
 
-        /// <summary>
-        /// 注册 Bridge 项目设置页。
-        /// </summary>
         [SettingsProvider]
-        public static SettingsProvider CreateSettingsProvider()
-        {
-            return new BridgeSettingsProvider();
-        }
+        public static SettingsProvider CreateSettingsProvider() => new BridgeSettingsProvider();
+        public static void OpenSettings() => SettingsService.OpenProjectSettings(SettingsPath);
 
-        /// <summary>
-        /// 打开 Bridge 项目设置页。
-        /// </summary>
-        public static void OpenSettings()
-        {
-            SettingsService.OpenProjectSettings(SettingsPath);
-        }
+        // ============================================================
+        // 配置加载 / 保存
+        // ============================================================
 
-        /// <summary>
-        /// 查找现有配置；若不存在则自动创建默认配置资源。
-        /// </summary>
-        /// <returns>网络配置资源；创建失败时返回 <c>null</c>。</returns>
         public static BridgeConfigAsset GetOrCreateConfigAsset()
         {
-            var settings = BridgeSettings.instance;
-            if (settings.ConfigAsset != null)
-            {
-                return settings.ConfigAsset;
-            }
-
-            var config = FindBridgeConfigAsset();
-            if (config != null)
-            {
-                settings.SetConfigAsset(config);
-                return config;
-            }
-
-            EnsureFolderExists("Assets/Resources");
-            EnsureFolderExists(DefaultConfigDirectory);
-
-            config = ScriptableObject.CreateInstance<BridgeConfigAsset>();
-            AssetDatabase.CreateAsset(config, DefaultConfigAssetPath);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            config = AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(DefaultConfigAssetPath);
-            settings.SetConfigAsset(config);
-            return config;
+            return GetOrCreateConfig() as BridgeConfigAsset ?? GetOrCreateConfigAssetFallback();
         }
 
-        /// <summary>
-        /// 构建 Project Settings 主界面。
-        /// </summary>
+        private static IBridgeConfig GetOrCreateConfig()
+        {
+            string typeName = BridgeSettings.instance.ConfigProviderTypeName;
+            if (!string.IsNullOrWhiteSpace(typeName))
+            {
+                var p = BridgeConfigProviderFactory.CreateProvider(typeName);
+                if (p != null) { var c = p.LoadConfig(); if (c != null) return c; }
+            }
+            return GetOrCreateConfigAssetFallback();
+        }
+
+        private static BridgeConfigAsset GetOrCreateConfigAssetFallback()
+        {
+            var s = BridgeSettings.instance;
+            if (s.ConfigAsset != null) return s.ConfigAsset;
+            var c = FindBridgeConfigAsset();
+            if (c != null) { s.SetConfigAsset(c); return c; }
+            EnsureFolderExists("Assets/Resources");
+            EnsureFolderExists(DefaultConfigDirectory);
+            c = ScriptableObject.CreateInstance<BridgeConfigAsset>();
+            AssetDatabase.CreateAsset(c, DefaultConfigAssetPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            c = AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(DefaultConfigAssetPath);
+            s.SetConfigAsset(c);
+            return c;
+        }
+
+        private static void SaveConfig(IBridgeConfig config)
+        {
+            string typeName = BridgeSettings.instance.ConfigProviderTypeName;
+            if (!string.IsNullOrWhiteSpace(typeName))
+            {
+                var p = BridgeConfigProviderFactory.CreateProvider(typeName);
+                if (p != null) { p.SaveConfig(config); return; }
+            }
+            var a = config as BridgeConfigAsset;
+            if (a != null) { EditorUtility.SetDirty(a); AssetDatabase.SaveAssets(); }
+        }
+
+        private static bool IsReserved(string k) =>
+            string.Equals(k, "dev", StringComparison.OrdinalIgnoreCase);
+
+        // ============================================================
+        // UI
+        // ============================================================
+
         private static void BuildUi(VisualElement rootElement)
         {
             rootElement.Clear();
 
-            var visualTree = UxmlAssetUtility.LoadVisualTreeAsset(UxmlPath);
-            visualTree.CloneTree(rootElement);
+            var vt = UxmlAssetUtility.LoadVisualTreeAsset(UxmlPath);
+            if (vt == null) { rootElement.Add(new Label("UXML 加载失败")); return; }
+            vt.CloneTree(rootElement);
 
-            var netConfig = GetOrCreateConfigAsset();
-            if (netConfig == null)
-            {
-                BuildMissingAssetUi(rootElement);
-                return;
-            }
+            var config = GetOrCreateConfig();
+            if (config == null) { rootElement.Add(new Label("配置加载失败")); return; }
 
-            BindConfigAssetSection(rootElement, netConfig);
+            BuildProviderPopup(rootElement);
+            BuildEnvToolbar(rootElement, config);
 
-            var configSerializedObject = new SerializedObject(netConfig);
-            BindToolbarSection(rootElement, netConfig, configSerializedObject);
-            BindEnvironmentCardSection(rootElement, netConfig, configSerializedObject);
+            var cc = rootElement.Q<VisualElement>("EnvironmentCardContainer");
+            cc?.Clear();
+            foreach (string envKey in config.EnvironmentKeys)
+                cc?.Add(BuildEnvCard(config, envKey, rootElement));
         }
 
-        /// <summary>
-        /// 绑定 Bridge 配置 SO 引用区域。
-        /// </summary>
-        /// <param name="rootElement">Project Settings 根元素。</param>
-        /// <param name="config">当前 Bridge 配置资产。</param>
-        private static void BindConfigAssetSection(VisualElement rootElement, BridgeConfigAsset config)
+        // ---- 提供器下拉 ----
+
+        private static void BuildProviderPopup(VisualElement rootElement)
         {
-            var contentRoot = rootElement.Q<VisualElement>("ContentRoot");
-            if (contentRoot == null)
-            {
-                return;
-            }
+            var cr = rootElement.Q<VisualElement>("ContentRoot");
+            if (cr == null) return;
+
+            var settings = BridgeSettings.instance;
+            var types = TypeCache.GetTypesDerivedFrom<IBridgeConfigProvider>()
+                .Where(t => !t.IsAbstract && !t.IsInterface).OrderBy(t => t.FullName).ToList();
 
             var section = new VisualElement();
             section.AddToClassList("section-card");
+            section.Add(new Label("配置提供器") { name = "section-title" });
 
-            var title = new Label("配置资源");
-            title.AddToClassList("section-title");
-            section.Add(title);
+            var choices = new List<string> { "(未选择 — ScriptableObject)" };
+            choices.AddRange(types.Select(t => t.FullName));
 
-            var objectField = new ObjectField("Bridge 配置 SO")
+            string cur = settings.ConfigProviderTypeName;
+            int sel = 0;
+            if (!string.IsNullOrWhiteSpace(cur))
+            { int f = choices.FindIndex(x => string.Equals(x, cur, StringComparison.Ordinal)); if (f >= 0) sel = f; }
+
+            var dd = new PopupField<string>("提供器类型", choices, sel);
+            dd.AddToClassList("stretch-field");
+            section.Add(dd);
+
+            var hint = new TextElement();
+            hint.AddToClassList("environment-subtitle");
+            section.Add(hint);
+            void Rf() { hint.text = dd.index == 0 ? "数据源: BridgeConfigAsset (ScriptableObject)" : $"数据源: {choices[dd.index]}"; }
+            Rf();
+
+            dd.RegisterValueChangedCallback(evt =>
             {
-                objectType = typeof(BridgeConfigAsset),
-                allowSceneObjects = false,
-                value = config
-            };
-            objectField.AddToClassList("stretch-field");
-            objectField.RegisterValueChangedCallback(evt =>
-            {
-                BridgeSettings.instance.SetConfigAsset(evt.newValue as BridgeConfigAsset);
+                settings.SetConfigProviderType(dd.index > 0 ? evt.newValue : null);
+                Rf();
                 BuildUi(rootElement);
             });
-            section.Add(objectField);
 
-            contentRoot.Insert(0, section);
+            cr.Insert(0, section);
         }
 
-        /// <summary>
-        /// 在配置创建失败时显示提示信息。
-        /// </summary>
-        private static void BuildMissingAssetUi(VisualElement rootElement)
+        // ---- 环境工具栏 ----
+
+        private static void BuildEnvToolbar(VisualElement rootElement, IBridgeConfig config)
         {
-            var banner = rootElement.Q<VisualElement>("MissingAssetMessage");
-            if (banner != null)
-            {
-                banner.style.display = DisplayStyle.Flex;
-            }
+            var container = rootElement.Q<VisualElement>("CurrentEnvironmentContainer");
+            if (container == null) return;
+            container.Clear();
 
-            var warning = rootElement.Q<TextElement>("MissingAssetText");
-            if (warning != null)
-            {
-                warning.text = "未能创建或加载 BridgeConfig 配置资源，请检查 Assets/Resources/VoyageForge/Config 目录的写入状态。";
-            }
+            var envs = config.EnvironmentKeys.ToList();
+            if (envs.Count == 0) envs.Add(config.EnvironmentKey);
 
-            var content = rootElement.Q<VisualElement>("ContentRoot");
-            if (content != null)
+            int idx = Mathf.Max(0, envs.FindIndex(e => e == config.EnvironmentKey));
+            var popup = new PopupField<string>("当前环境", envs, idx);
+            popup.AddToClassList("stretch-field");
+            popup.RegisterValueChangedCallback(evt =>
             {
-                content.style.display = DisplayStyle.None;
-            }
-        }
-
-        /// <summary>
-        /// 绑定顶部环境工具栏。
-        /// </summary>
-        private static void BindToolbarSection(VisualElement rootElement, BridgeConfigAsset config,
-            SerializedObject serializedObject)
-        {
-            var currentEnvironmentContainer = rootElement.Q<VisualElement>("CurrentEnvironmentContainer");
-            currentEnvironmentContainer.Clear();
-
-            var environments = config.EnvironmentKeys.ToList();
-            if (environments.Count == 0)
-            {
-                environments.Add(config.EnvironmentKey);
-            }
-
-            int selectedIndex = Mathf.Max(0, environments.FindIndex(item => item == config.EnvironmentKey));
-            var popupField = new PopupField<string>("当前环境", environments, selectedIndex);
-            popupField.AddToClassList("stretch-field");
-            popupField.RegisterValueChangedCallback(evt =>
-            {
-                serializedObject.Update();
-                serializedObject.FindProperty("environmentKey").stringValue = evt.newValue;
-                Save(serializedObject);
+                config.SetEnvironment(evt.newValue);
+                SaveConfig(config);
                 BuildUi(rootElement);
             });
-            currentEnvironmentContainer.Add(popupField);
+            container.Add(popup);
 
-            var environmentNameField = rootElement.Q<TextField>("NewEnvironmentField");
-            var addEnvironmentButton = rootElement.Q<Button>("AddEnvironmentButton");
-            addEnvironmentButton.clicked += () =>
+            var input = rootElement.Q<TextField>("NewEnvironmentField");
+            var btn = rootElement.Q<Button>("AddEnvironmentButton");
+            if (btn != null)
             {
-                string environmentKey = environmentNameField.value?.Trim();
-                if (!config.AddEnvironment(environmentKey))
+                btn.clicked += () =>
                 {
-                    return;
-                }
-
-                SaveAsset(config);
-                environmentNameField.value = string.Empty;
-                BuildUi(rootElement);
-            };
-        }
-
-        /// <summary>
-        /// 绑定环境卡片区域。
-        /// </summary>
-        private static void BindEnvironmentCardSection(VisualElement rootElement, BridgeConfigAsset config,
-            SerializedObject serializedObject)
-        {
-            var cardContainer = rootElement.Q<VisualElement>("EnvironmentCardContainer");
-            cardContainer.Clear();
-
-            if (config.EnvironmentKeys.Count == 0)
-            {
-                var emptyMessage = new TextElement { text = "当前还没有环境，请先新增环境。" };
-                emptyMessage.AddToClassList("warning-banner-text");
-                cardContainer.Add(emptyMessage);
-                return;
-            }
-
-            foreach (string environmentKey in config.EnvironmentKeys)
-            {
-                cardContainer.Add(CreateEnvironmentCard(rootElement, config, serializedObject, environmentKey));
+                    string key = input?.value?.Trim();
+                    if (string.IsNullOrWhiteSpace(key)) return;
+                    if (!config.EnvironmentKeys.Any(e => string.Equals(e, key, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        config.EnvironmentKeys.Add(key);
+                        if (string.IsNullOrWhiteSpace(config.EnvironmentKey))
+                            config.EnvironmentKey = key;
+                        SaveConfig(config);
+                    }
+                    if (input != null) input.value = string.Empty;
+                    BuildUi(rootElement);
+                };
             }
         }
 
-        /// <summary>
-        /// 创建单个环境卡片。
-        /// </summary>
-        private static VisualElement CreateEnvironmentCard(
-            VisualElement rootElement,
-            BridgeConfigAsset config,
-            SerializedObject serializedObject,
-            string environmentKey)
+        // ---- 环境卡片 ----
+
+        private static VisualElement BuildEnvCard(IBridgeConfig config, string envKey, VisualElement rootElement)
         {
             var card = new VisualElement();
             card.AddToClassList("environment-card");
 
             var header = new VisualElement();
             header.AddToClassList("environment-card-header");
+            var tg = new VisualElement();
+            tg.AddToClassList("environment-title-group");
+            tg.Add(new Label(envKey));
+            header.Add(tg);
 
-            var titleGroup = new VisualElement();
-            titleGroup.AddToClassList("environment-title-group");
+            var actions = new VisualElement();
+            actions.AddToClassList("environment-action-group");
 
-            var title = new Label(environmentKey);
-            title.AddToClassList("environment-title");
-
-            var subtitle = new TextElement { text = "同一个环境下可以维护多组端点键值对，例如 default、webapi、socket。" };
-            subtitle.AddToClassList("environment-subtitle");
-
-            titleGroup.Add(title);
-            titleGroup.Add(subtitle);
-
-            var actionGroup = new VisualElement();
-            actionGroup.AddToClassList("environment-action-group");
-
-            var addEndpointButton = new Button(() =>
+            var addEp = new Button(() =>
             {
-                config.AddEndpoint(environmentKey);
-                SaveAsset(config);
+                config.Endpoints.Add(new EndpointConfig
+                {
+                    EnvironmentKey = envKey,
+                    EndpointKey = "default",
+                    Url = string.Empty
+                });
+                SaveConfig(config);
                 BuildUi(rootElement);
             })
-            {
-                text = "新增链接"
-            };
-            addEndpointButton.AddToClassList("primary-button");
+            { text = "新增链接" };
+            addEp.AddToClassList("primary-button");
+            actions.Add(addEp);
 
-            var removeEnvironmentButton = new Button(() =>
+            bool reserved = IsReserved(envKey);
+            var delEnv = new Button(() =>
             {
-                config.RemoveEnvironment(environmentKey);
-                SaveAsset(config);
+                if (!reserved)
+                {
+                    config.EnvironmentKeys.Remove(envKey);
+                    config.Endpoints.RemoveAll(e => e != null &&
+                        string.Equals(e.EnvironmentKey, envKey, StringComparison.OrdinalIgnoreCase));
+                    if (string.Equals(config.EnvironmentKey, envKey, StringComparison.OrdinalIgnoreCase))
+                        config.SetEnvironment();
+                    SaveConfig(config);
+                }
                 BuildUi(rootElement);
             })
-            {
-                text = "删除环境"
-            };
-            removeEnvironmentButton.AddToClassList("secondary-button");
+            { text = reserved ? "保留环境" : "删除环境" };
+            delEnv.AddToClassList("secondary-button");
+            if (reserved) { delEnv.tooltip = "dev 环境始终保留。"; delEnv.SetEnabled(false); }
+            actions.Add(delEnv);
 
-            bool isReservedEnvironment = string.Equals(environmentKey, BridgeConfigAsset.ReservedEnvironmentKey,
-                StringComparison.OrdinalIgnoreCase);
-            if (isReservedEnvironment)
-            {
-                removeEnvironmentButton.text = "保留环境";
-                removeEnvironmentButton.tooltip = "dev 环境作为默认保底环境会始终保留，不能删除。";
-                removeEnvironmentButton.SetEnabled(false);
-            }
-
-            actionGroup.Add(addEndpointButton);
-            actionGroup.Add(removeEnvironmentButton);
-
-            header.Add(titleGroup);
-            header.Add(actionGroup);
+            header.Add(actions);
             card.Add(header);
 
-            var entryIndexes = GetEntryIndexesByEnvironment(serializedObject, environmentKey);
-            if (entryIndexes.Count == 0)
+            var eps = config.Endpoints
+                .Where(e => e != null && string.Equals(e.EnvironmentKey, envKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (eps.Count == 0)
             {
-                var emptyMessage = new TextElement { text = "这个环境下还没有链接配置。" };
-                emptyMessage.AddToClassList("info-banner-text");
-                card.Add(emptyMessage);
-                return card;
+                var empty = new TextElement { text = "暂无链接配置。" };
+                empty.AddToClassList("info-banner-text");
+                card.Add(empty);
             }
-
-            foreach (int entryIndex in entryIndexes)
+            else
             {
-                card.Add(CreateEndpointRow(rootElement, serializedObject, entryIndex));
+                int globalBase = config.Endpoints.FindIndex(e =>
+                    e != null && string.Equals(e.EnvironmentKey, envKey, StringComparison.OrdinalIgnoreCase));
+                for (int i = 0; i < eps.Count; i++)
+                    card.Add(BuildEpRow(config, envKey, i, eps[i], rootElement));
             }
 
             return card;
         }
 
-        /// <summary>
-        /// 创建单条端点编辑行。
-        /// </summary>
-        private static VisualElement CreateEndpointRow(VisualElement rootElement, SerializedObject serializedObject,
-            int index)
-        {
-            var endpointEntriesProperty = serializedObject.FindProperty("endpointEntries");
-            var entryProperty = endpointEntriesProperty.GetArrayElementAtIndex(index);
+        // ---- 端点行 ----
 
+        private static VisualElement BuildEpRow(IBridgeConfig config, string envKey,
+            int localIdx, EndpointConfig entry, VisualElement rootElement)
+        {
             var row = new VisualElement();
             row.AddToClassList("endpoint-row");
 
-            var endpointKeyField = new TextField("键")
+            var kf = new TextField("键") { value = entry.EndpointKey ?? "default" };
+            kf.AddToClassList("endpoint-field");
+            kf.RegisterValueChangedCallback(evt =>
             {
-                value = entryProperty.FindPropertyRelative("endpointKey").stringValue
-            };
-            endpointKeyField.AddToClassList("endpoint-field");
-            endpointKeyField.RegisterValueChangedCallback(evt =>
-            {
-                serializedObject.Update();
-                var target = serializedObject.FindProperty("endpointEntries").GetArrayElementAtIndex(index);
-                target.FindPropertyRelative("endpointKey").stringValue =
-                    string.IsNullOrWhiteSpace(evt.newValue) ? "default" : evt.newValue.Trim();
-                Save(serializedObject);
+                entry.EndpointKey = string.IsNullOrWhiteSpace(evt.newValue) ? "default" : evt.newValue.Trim();
+                SaveConfig(config);
             });
+            row.Add(kf);
 
-            var endpointUrlField = new TextField("地址")
+            var uf = new TextField("地址") { value = entry.Url ?? "" };
+            uf.AddToClassList("endpoint-field");
+            uf.RegisterValueChangedCallback(evt =>
             {
-                value = entryProperty.FindPropertyRelative("url").stringValue
-            };
-            endpointUrlField.AddToClassList("endpoint-field");
-            endpointUrlField.RegisterValueChangedCallback(evt =>
-            {
-                serializedObject.Update();
-                var target = serializedObject.FindProperty("endpointEntries").GetArrayElementAtIndex(index);
-                target.FindPropertyRelative("url").stringValue = evt.newValue?.Trim() ?? string.Empty;
-                Save(serializedObject);
+                entry.Url = evt.newValue?.Trim() ?? "";
+                SaveConfig(config);
             });
+            row.Add(uf);
 
-            var removeEndpointButton = new Button(() =>
+            var del = new Button(() =>
             {
-                serializedObject.Update();
-                serializedObject.FindProperty("endpointEntries").DeleteArrayElementAtIndex(index);
-                Save(serializedObject);
+                // 通过 global index 删除，因为 localIdx 可能在编辑期间失效
+                int globalIdx = -1;
+                int n = 0;
+                for (int i = 0; i < config.Endpoints.Count; i++)
+                {
+                    var e = config.Endpoints[i];
+                    if (e != null && string.Equals(e.EnvironmentKey, envKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (n == localIdx) { globalIdx = i; break; }
+                        n++;
+                    }
+                }
+                if (globalIdx >= 0) config.Endpoints.RemoveAt(globalIdx);
+                SaveConfig(config);
                 BuildUi(rootElement);
             })
-            {
-                text = "删除链接"
-            };
-            removeEndpointButton.AddToClassList("danger-button");
+            { text = "删除链接" };
+            del.AddToClassList("danger-button");
+            row.Add(del);
 
-            row.Add(endpointKeyField);
-            row.Add(endpointUrlField);
-            row.Add(removeEndpointButton);
             return row;
         }
 
-        /// <summary>
-        /// 获取指定环境下的全部端点索引。
-        /// </summary>
-        private static List<int> GetEntryIndexesByEnvironment(SerializedObject serializedObject, string environmentKey)
-        {
-            var result = new List<int>();
-            var endpointEntriesProperty = serializedObject.FindProperty("endpointEntries");
-            for (int index = 0; index < endpointEntriesProperty.arraySize; index++)
-            {
-                var entryProperty = endpointEntriesProperty.GetArrayElementAtIndex(index);
-                string value = entryProperty.FindPropertyRelative("environmentKey").stringValue;
-                if (string.Equals(value, environmentKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Add(index);
-                }
-            }
+        // ============================================================
+        // 辅助
+        // ============================================================
 
-            return result;
-        }
-
-        /// <summary>
-        /// 全项目搜索现有配置资源。
-        /// </summary>
         private static BridgeConfigAsset FindBridgeConfigAsset()
         {
             string[] guids = AssetDatabase.FindAssets($"t:{nameof(BridgeConfigAsset)}");
-            if (guids == null || guids.Length == 0)
-            {
-                return null;
-            }
-
-            string assetPath = AssetDatabase.GUIDToAssetPath(guids[0]);
-            return AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(assetPath);
+            if (guids == null || guids.Length == 0) return null;
+            return AssetDatabase.LoadAssetAtPath<BridgeConfigAsset>(AssetDatabase.GUIDToAssetPath(guids[0]));
         }
 
-        /// <summary>
-        /// 确保目录存在，不存在时自动创建。
-        /// </summary>
         private static void EnsureFolderExists(string folderPath)
         {
-            if (AssetDatabase.IsValidFolder(folderPath))
-            {
-                return;
-            }
-
-            string parentPath = Path.GetDirectoryName(folderPath)?.Replace("\\", "/");
-            string folderName = Path.GetFileName(folderPath);
-            if (!string.IsNullOrWhiteSpace(parentPath) && !AssetDatabase.IsValidFolder(parentPath))
-            {
-                EnsureFolderExists(parentPath);
-            }
-
-            AssetDatabase.CreateFolder(parentPath, folderName);
-        }
-
-        /// <summary>
-        /// 保存序列化对象。
-        /// </summary>
-        private static void Save(SerializedObject serializedObject)
-        {
-            serializedObject.ApplyModifiedProperties();
-            if (serializedObject.targetObject != null)
-            {
-                EditorUtility.SetDirty(serializedObject.targetObject);
-            }
-
-            AssetDatabase.SaveAssets();
-        }
-
-        /// <summary>
-        /// 保存单个资源对象。
-        /// </summary>
-        private static void SaveAsset(UnityEngine.Object target)
-        {
-            if (target == null)
-            {
-                return;
-            }
-
-            EditorUtility.SetDirty(target);
-            AssetDatabase.SaveAssets();
+            if (AssetDatabase.IsValidFolder(folderPath)) return;
+            string p = Path.GetDirectoryName(folderPath)?.Replace("\\", "/");
+            string n = Path.GetFileName(folderPath);
+            if (!string.IsNullOrWhiteSpace(p) && !AssetDatabase.IsValidFolder(p)) EnsureFolderExists(p);
+            AssetDatabase.CreateFolder(p, n);
         }
     }
 }

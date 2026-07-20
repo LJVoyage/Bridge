@@ -11,16 +11,30 @@ namespace VoyageForge.Bridge.Sample
     public class ResourcesBridgeConfigProvider : IBridgeConfigProvider
     {
         /// <summary>
+        /// Resources 下的默认配置路径（不含扩展名）。
+        /// </summary>
+        public const string DefaultResourcesPath = "VoyageForge/Config/BridgeConfig";
+
+        /// <summary>
         /// 配置资源路径。
         /// </summary>
         private readonly string _path;
-        
-        public ResourcesBridgeConfigProvider(string path){
+
+        /// <summary>
+        /// 无参构造，使用默认路径。
+        /// </summary>
+        public ResourcesBridgeConfigProvider() : this(DefaultResourcesPath) { }
+
+        /// <summary>
+        /// 创建 Resources 配置提供器。
+        /// </summary>
+        /// <param name="path">Resources 目录下的配置路径（不含扩展名）。</param>
+        public ResourcesBridgeConfigProvider(string path)
+        {
             _path = path;
         }
-        
-       
-        
+
+
         /// <summary>
         /// 从所有 Resources 目录中搜索第一份网络配置资源。
         /// </summary>
@@ -44,6 +58,25 @@ namespace VoyageForge.Bridge.Sample
             return configs.First();
         }
 
+
+        /// <summary>
+        /// 保存配置到 Resources 中的 ScriptableObject 资源。
+        /// </summary>
+        /// <param name="config">网络配置实例。</param>
+        public void SaveConfig(IBridgeConfig config)
+        {
+#if UNITY_EDITOR
+            var asset = config as BridgeConfigAsset;
+            if (asset == null)
+            {
+                Debug.LogError($"[Bridge] ResourcesBridgeConfigProvider 仅支持保存 BridgeConfigAsset 类型。");
+                return;
+            }
+
+            UnityEditor.EditorUtility.SetDirty(asset);
+            UnityEditor.AssetDatabase.SaveAssets();
+#endif
+        }
 
         /// <summary>
         /// 获取当前环境键。
