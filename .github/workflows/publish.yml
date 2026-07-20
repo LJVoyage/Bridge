@@ -68,7 +68,9 @@ jobs:
       - name: 修改 package.json 和 CHANGELOG.md
         run: |
           NEW_VER="${{ steps.version.outputs.new_version }}"
+          # 更新 package.json 中的 version（依赖已经在前面更新过了）
           node -e "let fs=require('fs'); let p=require('./package.json'); p.version='${NEW_VER}'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');"
+          # 生成 CHANGELOG
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -n "$LAST_TAG" ]; then
             git log "$LAST_TAG"..HEAD --pretty=format:"- %s" > CHANGELOG_TEMP.md
@@ -92,6 +94,7 @@ jobs:
           git add package.json CHANGELOG.md
           git commit -m "chore(release): bump version to ${{ steps.version.outputs.new_version }}"
           NEW_VER="${{ steps.version.outputs.new_version }}"
+          # 删除远程已存在的同名分支，避免 non-fast-forward
           git push origin --delete "release/v${NEW_VER}" 2>/dev/null || true
           git push origin "release/v${NEW_VER}"
 
@@ -106,13 +109,24 @@ jobs:
           if [ -n "$EXISTING_PR" ]; then
             gh pr close "$EXISTING_PR" --delete-branch
           fi
-          # 使用 printf 构建 body，避免 YAML 解析问题
-          BODY=$(printf "## 🤖 自动发布的 PR\n\n版本号: **v${NEW_VER}**\n\n**包含的变更**：\n- 更新 `com.voyageforge.depot` 依赖到最新版本\n- 更新 `package.json` 版本号\n- 更新 `CHANGELOG.md`\n\n请 Review 代码，确认无误后点击 **Merge**。\n\n合并后 CI 会自动打 Tag 并发布到 OpenUPM。")
           gh pr create \
             --base main \
             --head "$BRANCH" \
             --title "$PR_TITLE" \
-            --body "$BODY"
+            --body-file - <<EOF
+        ## 🤖 自动发布的 PR
+
+        版本号: **v${NEW_VER}**
+
+        **包含的变更**：
+        - 更新 `com.voyageforge.depot` 依赖到最新版本
+        - 更新 `package.json` 版本号
+        - 更新 `CHANGELOG.md`
+
+        请 Review 代码，确认无误后点击 **Merge**。
+
+        合并后 CI 会自动打 Tag 并发布到 OpenUPM。
+        EOF
 
   tag-release:
     runs-on: ubuntu-latest
@@ -145,7 +159,7 @@ jobs:
       - name: 创建并推送 Tag
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
           git tag "v${{ steps.get_version.outputs.version }}"
           git push origin "v${{ steps.get_version.outputs.version }}"
 
