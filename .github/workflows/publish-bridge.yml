@@ -1,0 +1,198 @@
+name: Publish Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: "基础分支（将从该分支创建 release）"
+        required: false
+        default: "dev"
+        type: string
+      release_version:
+        description: "版本号（留空则自动递增补丁号）"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出基础分支
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.base_branch || 'dev' }}
+          fetch-depth: 0
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: 安装 semver
+        run: npm install -g semver
+
+      - name: 计算新版本号
+        id: version
+        run: |
+          INPUT_VER="${{ github.event.inputs.release_version }}"
+          CURRENT_VER=$(node -p "require('./package.json').version")
+          if [ -n "$INPUT_VER" ]; then
+            NEW_VER="$INPUT_VER"
+          else
+            NEW_VER=$(npx semver "$CURRENT_VER" -i patch)
+          fi
+          echo "新版本号: $NEW_VER"
+          echo "new_version=$NEW_VER" >> "$GITHUB_OUTPUT"
+
+      - name: 获取最新 Depot 版本并更新依赖
+        run: |
+          echo "正在获取最新 Voyage Depot 版本..."
+          DEPOT_VER=$(git ls-remote --tags https://github.com/VoyageForge/Depot.git \
+            | grep -o 'refs/tags/v[0-9.]*' | sort -V | tail -n 1 | sed 's/refs\/tags\/v//')
+          if [ -z "$DEPOT_VER" ]; then
+            echo "❌ 获取 Depot 版本失败"
+            exit 1
+          fi
+          echo "✅ 最新 Depot 版本: $DEPOT_VER"
+          node -e "let fs=require('fs'); let p=require('./package.json'); p.dependencies['com.voyageforge.depot'] = '${DEPOT_VER}'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');"
+
+      - name: 创建 release 分支
+        run: |
+          NEW_VER="${{ steps.version.outputs.new_version }}"
+          git checkout -b "release/v${NEW_VER}"
+
+      - name: 修改 package.json 和 CHANGELOG.md
+        run: |
+          NEW_VER="${{ steps.version.outputs.new_version }}"
+          node -e "let fs=require('fs'); let p=require('./package.json'); p.version='${NEW_VER}'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');"
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            git log "$LAST_TAG"..HEAD --pretty=format:"- %s" > CHANGELOG_TEMP.md
+          else
+            echo "- Initial release" > CHANGELOG_TEMP.md
+          fi
+          {
+            echo "## v${NEW_VER}"
+            cat CHANGELOG_TEMP.md
+            if [ -f CHANGELOG.md ]; then
+              cat CHANGELOG.md
+            fi
+          } > CHANGELOG_NEW.md
+          mv CHANGELOG_NEW.md CHANGELOG.md
+          rm -f CHANGELOG_TEMP.md
+
+      - name: 提交并推送 release 分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.new_version }}"
+          NEW_VER="${{ steps.version.outputs.new_version }}"
+          git push origin --delete "release/v${NEW_VER}" 2>/dev/null || true
+          git push origin "release/v${NEW_VER}"
+
+      - name: 自动创建 PR（release → main）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VER="${{ steps.version.outputs.new_version }}"
+          BRANCH="release/v${NEW_VER}"
+          PR_TITLE="chore(release): v${NEW_VER}"
+          EXISTING_PR=$(gh pr list --base main --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr close "$EXISTING_PR" --delete-branch
+          fi
+          # 使用 printf 构建 body，避免 YAML 解析问题
+          BODY=$(printf "## 🤖 自动发布的 PR\n\n版本号: **v${NEW_VER}**\n\n**包含的变更**：\n- 更新 `com.voyageforge.depot` 依赖到最新版本\n- 更新 `package.json` 版本号\n- 更新 `CHANGELOG.md`\n\n请 Review 代码，确认无误后点击 **Merge**。\n\n合并后 CI 会自动打 Tag 并发布到 OpenUPM。")
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body "$BODY"
+
+  tag-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request')
+    steps:
+      - name: 检出 main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: 读取版本号
+        id: get_version
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          echo "version=$PKG_VER" >> "$GITHUB_OUTPUT"
+
+      - name: 检查 Tag 是否已存在
+        run: |
+          TAG="v${{ steps.get_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG 已存在，请递增版本号！"
+            exit 1
+          fi
+
+      - name: 创建并推送 Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.get_version.outputs.version }}"
+          git push origin "v${{ steps.get_version.outputs.version }}"
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: "Bridge v${{ steps.get_version.outputs.version }}"
+          generate_release_notes: true
+
+      - name: 将 main 合并回 dev（同步版本号）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin dev
+          git checkout dev
+
+          if git merge origin/main --no-ff -m "chore: sync version v${{ steps.get_version.outputs.version }} back to dev"; then
+            git push origin dev
+            echo "✅ 版本号已成功同步回 dev"
+          else
+            echo "⚠️ 合并冲突，尝试通过 PR 同步..."
+            git merge --abort || true
+
+            git checkout main
+            SYNC_BRANCH="chore/sync-version-v${{ steps.get_version.outputs.version }}"
+            git checkout -b "$SYNC_BRANCH"
+            git push origin "$SYNC_BRANCH"
+
+            gh pr create \
+              --base dev \
+              --head "$SYNC_BRANCH" \
+              --title "chore: sync version v${{ steps.get_version.outputs.version }} back to dev" \
+              --body "🤖 自动同步版本号\n\n由于 `dev` 分支有新的提交，无法自动合并，请手动合并此 PR。"
+            echo "✅ 已创建同步 PR，请手动合并"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 删除已合并的 release 分支
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          REMOTE_BRANCH="release/v${VERSION}"
+          if git ls-remote --heads origin "$REMOTE_BRANCH" | grep -q "$REMOTE_BRANCH"; then
+            git push origin --delete "$REMOTE_BRANCH"
+            echo "✅ 已删除远程分支 $REMOTE_BRANCH"
+          else
+            echo "⚠️ 远程分支 $REMOTE_BRANCH 不存在，跳过"
+          fi
