@@ -1,4 +1,5 @@
-## v0.0.10
+## v0.0.11
+- chore(bridge): set version to 0.0.11## v0.0.10
 - chore(bridge): set version to 0.0.10## v0.0.9
 - chore(bridge): set version to 0.0.9
 - Refactor publish workflow for versioning and changelog
