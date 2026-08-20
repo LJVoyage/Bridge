@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -24,22 +23,14 @@ namespace VoyageForge.Bridge.Runtime
                 return _config;
             }
         }
-
-
         private IBridgeConfig _config;
 
         public static string UrlKey => Instance.urlKey;
-
         protected virtual string urlKey => "BridgeWebApi";
 
         public event Action<string> OnError;
 
-
-        public string GetBaseUrl(string key)
-        {
-            return Config.GetBaseUrl(key);
-        }
-
+        public string GetBaseUrl(string key) => Config.GetBaseUrl(key);
         public void SetEnvironmentKey(string environmentKey = "")
         {
             if (string.IsNullOrEmpty(environmentKey))
@@ -48,74 +39,40 @@ namespace VoyageForge.Bridge.Runtime
                 Config.SetEnvironment(environmentKey);
         }
 
-        // 全局默认 headers
         public static Dictionary<string, string> DefaultHeaders { get; set; } = new();
 
-        // 拦截器链
         private static readonly List<Func<Request, Request>> requestInterceptors = new();
         private static readonly List<Func<Response<string>, Response<string>>> responseInterceptors = new();
 
-        /// <summary>
-        /// 添加请求拦截器
-        /// </summary>
-        /// <param name="interceptor"></param>
-        public static void UseRequestInterceptor(Func<Request, Request> interceptor)
+        public static void UseRequestInterceptor(Func<Request, Request> interceptor) => requestInterceptors.Add(interceptor);
+        public static void RemoveRequestInterceptor(Func<Request, Request> interceptor) => requestInterceptors.Remove(interceptor);
+        public static void UseResponseInterceptor(Func<Response<string>, Response<string>> interceptor) => responseInterceptors.Add(interceptor);
+        public static void RemoveResponseInterceptor(Func<Response<string>, Response<string>> interceptor) => responseInterceptors.Remove(interceptor);
+
+        // ======================== 核心发送方法 ========================
+        public static async UniTask<Response<R>> SendAsync<R>(Request request) where R : class
         {
-            requestInterceptors.Add(interceptor);
-        }
-
-
-        /// <summary>
-        /// 移除请求拦截器
-        /// </summary>
-        /// <param name="interceptor"></param>
-        public static void RemoveRequestInterceptor(Func<Request, Request> interceptor)
-        {
-            requestInterceptors.Remove(interceptor);
-        }
-
-        /// <summary>
-        /// 添加响应拦截器
-        /// </summary>
-        /// <param name="interceptor"></param>
-        public static void UseResponseInterceptor(Func<Response<string>, Response<string>> interceptor)
-        {
-            responseInterceptors.Add(interceptor);
-        }
-
-        /// <summary>
-        /// 移除响应拦截器
-        /// </summary>
-        /// <param name="interceptor"></param>
-        public static void RemoveResponseInterceptor(Func<Response<string>, Response<string>> interceptor)
-        {
-            responseInterceptors.Remove(interceptor);
-        }
-
-
-        #region 核心请求
-
-        public static async Task<Response<R>> SendAsync<R>(Request request)
-        {
-            // 判断是否需要添加 baseURL 前缀
+            // 1. BaseURL
             if (!request.url.StartsWith("http"))
-                request.url = Instance.Config.GetBaseUrl(request.endpointKey).TrimEnd('/') + "/" +
-                              request.url.TrimStart('/');
+                request.url = Instance.Config.GetBaseUrl(request.endpointKey).TrimEnd('/') + "/" + request.url.TrimStart('/');
 
-            // 合并全局 headers
+            // 2. Headers
             request.headers ??= new Dictionary<string, string>();
             foreach (var kv in DefaultHeaders)
                 if (!request.headers.ContainsKey(kv.Key))
                     request.headers[kv.Key] = kv.Value;
 
-            // 执行请求拦截器链
+            // 3. 拦截器
             foreach (var interceptor in requestInterceptors)
                 request = interceptor.Invoke(request);
 
+            // 4. 创建 UnityWebRequest
             using var uwr = new UnityWebRequest(request.url, request.method);
             uwr.downloadHandler = new DownloadHandlerBuffer();
 
-            // body
+            if (request.timeoutSeconds > 0)
+                uwr.timeout = request.timeoutSeconds;
+
             if (!string.IsNullOrEmpty(request.bodyJson))
             {
                 byte[] bodyRaw = Encoding.UTF8.GetBytes(request.bodyJson);
@@ -123,49 +80,43 @@ namespace VoyageForge.Bridge.Runtime
                 uwr.SetRequestHeader("Content-Type", "application/json");
             }
 
-            // headers
             if (request.headers != null)
             {
                 foreach (var kv in request.headers)
                     uwr.SetRequestHeader(kv.Key, kv.Value);
             }
 
-            var op = uwr.SendWebRequest();
-            float elapsed = 0f;
-            float timeout = request.timeoutSeconds;
-
-            while (!op.isDone)
+            // 5. 发送并捕获所有异常（包括超时、取消、网络错误）
+            try
             {
-                if (request.cancellationToken.IsCancellationRequested)
+                await uwr.SendWebRequest().ToUniTask(cancellationToken: request.cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[BridgeClient] 请求异常: {ex.Message} (URL: {request.url})");
+                var errorResponse = new Response<R>
                 {
-                    uwr.Abort();
-                    Debug.LogWarning("[BridgeClient] 请求被取消: " + request.url);
-                    return null;
-                }
-
-                if (timeout > 0)
+                    statusCode = 0,
+                    statusText = ex.GetType().Name,
+                    headers = new Dictionary<string, string>(),
+                    data = null
+                };
+                if (ex is UnityWebRequestException webEx && webEx.UnityWebRequest != null)
                 {
-                    elapsed += Time.deltaTime;
-                    if (elapsed > timeout)
-                    {
-                        uwr.Abort();
-                        Debug.LogWarning("[BridgeClient] 请求超时: " + request.url);
-                        return null;
-                    }
+                    errorResponse.statusCode = (HttpStatusCode)webEx.UnityWebRequest.responseCode;
+                    errorResponse.statusText = webEx.UnityWebRequest.result.ToString();
                 }
-
-                await Task.Yield();
+                Instance.OnError?.Invoke(ex.Message);
+                return errorResponse;
             }
 
+            // 6. 成功处理
             var response = new Response<R>
             {
                 statusCode = (HttpStatusCode)uwr.responseCode,
                 statusText = uwr.result.ToString(),
                 headers = new Dictionary<string, string>()
             };
-
-            response.statusCode = (HttpStatusCode)uwr.responseCode;
-
 
             if (uwr.result != UnityWebRequest.Result.Success)
             {
@@ -174,20 +125,26 @@ namespace VoyageForge.Bridge.Runtime
             }
 
             string responseText = uwr.downloadHandler.text;
-
+            response.RawText = responseText; // 新增
             R data = default;
 
-            try
+            if (typeof(R) == typeof(string))
             {
-                data = JsonConvert.DeserializeObject<R>(responseText);
+                data = (R)(object)responseText;
             }
-            catch
+            else
             {
-                Instance.OnError?.Invoke(uwr.error);
+                try
+                {
+                    data = JsonConvert.DeserializeObject<R>(responseText);
+                }
+                catch (Exception ex)
+                {
+                    Instance.OnError?.Invoke($"JSON 反序列化失败: {ex.Message}\n响应文本: {responseText}");
+                }
             }
 
             response.data = data;
-
 
             var rawResponse = new Response<string>
             {
@@ -196,151 +153,74 @@ namespace VoyageForge.Bridge.Runtime
                 statusText = response.statusText,
                 headers = response.headers
             };
-
             foreach (var interceptor in responseInterceptors)
                 rawResponse = interceptor.Invoke(rawResponse);
 
             return response;
         }
 
-        #endregion
-
-        #region 回调形式
-
-        public static RequestHandle<R> Send<R>(Request request)
-        {
-            return new RequestHandle<R>(SendAsync<R>(request));
-        }
-
-        public static RequestHandle<R> Get<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Get<R>(string url, string endpointKey,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken, endpointKey);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Post<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Post<R>(string url, string bodyJson, string endpointKey,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Put<R>(string url, string bodyJson,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Put<R>(string url, string bodyJson, string endpointKey,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Delete<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
-            return Send<R>(req);
-        }
-
-        public static RequestHandle<R> Delete<R>(string url, string endpointKey,
-            Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
-        {
-            var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken, endpointKey);
-            return Send<R>(req);
-        }
-
-        #endregion
-
-        #region Wait 形式
-
-        public static Task<Response<R>> GetAsync<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        // ======================== 快捷方法 ========================
+        public static UniTask<Response<R>> GetAsync<R>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> GetAsync<R>(string url, string endpointKey,
+        public static UniTask<Response<R>> GetAsync<R>(string url, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "GET", null, headers, timeoutSeconds, cancellationToken, endpointKey);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> PostAsync<R>(string url, string bodyJson,
+        public static UniTask<Response<R>> PostAsync<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> PostAsync<R>(string url, string bodyJson, string endpointKey,
+        public static UniTask<Response<R>> PostAsync<R>(string url, string bodyJson, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "POST", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> PutAsync<R>(string url, string bodyJson,
+        public static UniTask<Response<R>> PutAsync<R>(string url, string bodyJson,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> PutAsync<R>(string url, string bodyJson, string endpointKey,
+        public static UniTask<Response<R>> PutAsync<R>(string url, string bodyJson, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "PUT", bodyJson, headers, timeoutSeconds, cancellationToken, endpointKey);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> DeleteAsync<R>(string url, Dictionary<string, string> headers = null,
-            int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        public static UniTask<Response<R>> DeleteAsync<R>(string url, Dictionary<string, string> headers = null,
+            int timeoutSeconds = 30, CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken);
             return SendAsync<R>(req);
         }
 
-        public static Task<Response<R>> DeleteAsync<R>(string url, string endpointKey,
+        public static UniTask<Response<R>> DeleteAsync<R>(string url, string endpointKey,
             Dictionary<string, string> headers = null, int timeoutSeconds = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) where R : class
         {
             var req = BuildRequest(url, "DELETE", null, headers, timeoutSeconds, cancellationToken, endpointKey);
             return SendAsync<R>(req);
         }
-
-        #endregion
 
         private static Request BuildRequest(string url, string method, string bodyJson,
             Dictionary<string, string> headers, int timeoutSeconds, CancellationToken cancellationToken,

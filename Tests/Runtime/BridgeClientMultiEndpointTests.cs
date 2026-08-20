@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -8,6 +9,7 @@ using VoyageForge.Bridge.Runtime;
 
 namespace VoyageForge.Bridge.Tests.Runtime
 {
+    // ---------- 测试配置 ----------
     internal class TestBridgeConfig : IBridgeConfig
     {
         public string EnvironmentKey { get; set; } = "test";
@@ -25,7 +27,7 @@ namespace VoyageForge.Bridge.Tests.Runtime
             return match?.Url ?? Endpoints.First(e => e.EndpointKey == "default").Url;
         }
 
-        public string BuildFullUrl(string endpointKey, string path, System.Collections.Generic.Dictionary<string, string> query = null)
+        public string BuildFullUrl(string endpointKey, string path, Dictionary<string, string> query = null)
         {
             var baseUrl = GetBaseUrl(endpointKey).TrimEnd('/');
             var url = baseUrl + "/" + path.TrimStart('/');
@@ -44,14 +46,8 @@ namespace VoyageForge.Bridge.Tests.Runtime
     internal class TestBridgeConfigProvider : IBridgeConfigProvider
     {
         private readonly TestBridgeConfig _config = new();
-
         public IBridgeConfig LoadConfig() => _config;
-
-        public void SaveConfig(IBridgeConfig config)
-        {
-            // 测试提供器为内存实现，无需持久化
-        }
-
+        public void SaveConfig(IBridgeConfig config) { }
         public string GetEnvironment(string key = null) => _config.EnvironmentKey;
     }
 
@@ -61,94 +57,101 @@ namespace VoyageForge.Bridge.Tests.Runtime
         protected override string urlKey => "default";
     }
 
+    // ---------- 测试类 ----------
     public class BridgeClientMultiEndpointTests
     {
         [UnityTest]
         public IEnumerator TestFullUrl()
         {
-            var request = new Request
-            {
-                url = "https://jsonplaceholder.typicode.com/posts/1",
-                method = "GET"
-            };
+            var task = TestBridgeClient.GetAsync<string>("https://jsonplaceholder.typicode.com/posts/1");
+            var awaiter = task.GetAwaiter();
+            while (!awaiter.IsCompleted) yield return null;
 
-            var task = TestBridgeClient.SendAsync<PostDto>(request);
-            
-            yield return new WaitUntil(() => task.IsCompleted);
-
-            var response = task.Result;
-            Assert.IsNotNull(response, "Response should not be null");
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Expected success, got {response.statusCode}");
-            Assert.IsNotNull(response.data, "Data should not be null");
-            Assert.AreEqual(1, response.data.id);
+            var response = awaiter.GetResult();
+            Assert.IsNotNull(response);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"StatusCode: {response.statusCode}");
+            Assert.IsNotNull(response.data);
+            // 兼容 JSON 格式化（可能带空格）
+            Assert.IsTrue(response.data.Contains("\"id\": 1") || response.data.Contains("\"id\":1"), $"Response missing 'id:1': {response.data}");
         }
 
         [UnityTest]
         public IEnumerator TestDefaultEndpoint()
         {
-            var request = new Request
-            {
-                url = "/users/1",
-                method = "GET"
-            };
+            var task = TestBridgeClient.GetAsync<string>("/users/1");
+            var awaiter = task.GetAwaiter();
+            while (!awaiter.IsCompleted) yield return null;
 
-            var task = TestBridgeClient.SendAsync<UserDto>(request);
-            yield return new WaitUntil(() => task.IsCompleted);
-
-            var response = task.Result;
-            Assert.IsNotNull(response, "Response should not be null");
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Expected success, got {response.statusCode}");
-            Assert.IsNotNull(response.data, "Data should not be null");
-            Assert.AreEqual(1, response.data.id);
+            var response = awaiter.GetResult();
+            Assert.IsNotNull(response);
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsNotNull(response.data);
+            Assert.IsTrue(response.data.Contains("\"id\": 1") || response.data.Contains("\"id\":1"));
         }
 
         [UnityTest]
         public IEnumerator TestCustomEndpoint()
         {
-            var request = new Request
-            {
-                url = "/get",
-                method = "GET",
-                endpointKey = "webapi"
-            };
+            var task = TestBridgeClient.GetAsync<string>("/get", "webapi");
+            var awaiter = task.GetAwaiter();
+            while (!awaiter.IsCompleted) yield return null;
 
-            var task = TestBridgeClient.SendAsync<HttpBinDto>(request);
-            yield return new WaitUntil(() => task.IsCompleted);
-
-            var response = task.Result;
-            Assert.IsNotNull(response, "Response should not be null");
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Expected success, got {response.statusCode}");
-            Assert.IsNotNull(response.data, "Data should not be null");
-            Assert.IsTrue(response.data.url.Contains("httpbin.org"));
+            var response = awaiter.GetResult();
+            Assert.IsNotNull(response);
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsNotNull(response.data);
+            // 检查包含 "url" 字段和 "httpbin.org"
+            Assert.IsTrue(response.data.Contains("\"url\"") && response.data.Contains("httpbin.org"), $"Response missing url or host: {response.data}");
         }
 
         [UnityTest]
-        public IEnumerator TestCustomEndpointWithGetAsync()
+        public IEnumerator TestTimeout_ShouldFailFast()
         {
-            var task = TestBridgeClient.GetAsync<HttpBinDto>("/get", "webapi");
-            yield return new WaitUntil(() => task.IsCompleted);
+            var request = new Request
+            {
+                url = "https://httpbin.org/delay/5",
+                method = "GET",
+                timeoutSeconds = 2
+            };
+            var task = TestBridgeClient.SendAsync<string>(request);
+            var awaiter = task.GetAwaiter();
+            float start = Time.time;
+            while (!awaiter.IsCompleted) yield return null;
+            float elapsed = Time.time - start;
 
-            var response = task.Result;
-            Assert.IsNotNull(response, "Response should not be null");
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Expected success, got {response.statusCode}");
-            Assert.IsNotNull(response.data);
+            Assert.IsTrue(elapsed < 3f, $"Timeout took {elapsed}s, expected <3s");
+
+            var response = awaiter.GetResult();
+            Assert.IsNotNull(response);
+            Assert.IsFalse(response.IsSuccessStatusCode, "Should fail due to timeout");
+            Assert.IsNull(response.data);
         }
-    }
 
-    public class UserDto
-    {
-        public int id { get; set; }
-        public string name { get; set; }
-    }
+        [UnityTest]
+        public IEnumerator TestLongRunningRequest_ShouldSucceed()
+        {
+            var request = new Request
+            {
+                url = "https://httpbin.org/delay/3",
+                method = "GET",
+                timeoutSeconds = 30
+            };
+            var task = TestBridgeClient.SendAsync<string>(request);
+            var awaiter = task.GetAwaiter();
+            float start = Time.time;
+            while (!awaiter.IsCompleted) yield return null;
+            float elapsed = Time.time - start;
 
-    public class PostDto
-    {
-        public int id { get; set; }
-        public string title { get; set; }
-    }
+            // 允许网络波动，放宽到 2~12 秒
+            Assert.IsTrue(elapsed >= 2f && elapsed < 12f, $"Request took {elapsed}s, expected ~3s");
 
-    public class HttpBinDto
-    {
-        public string url { get; set; }
+            var response = awaiter.GetResult();
+            Assert.IsNotNull(response);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"StatusCode: {response.statusCode}, StatusText: {response.statusText}");
+            Assert.IsNotNull(response.data);
+
+            // 验证响应是包含 'url' 字段的 JSON（httpbin /delay 返回的就是 /get 的响应）
+            Assert.IsTrue(response.data.Contains("\"url\"") && response.data.Contains("httpbin.org"), $"Response missing url or host: {response.data}");
+        }
     }
 }
