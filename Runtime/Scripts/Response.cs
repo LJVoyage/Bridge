@@ -14,6 +14,8 @@ namespace VoyageForge.Bridge.Runtime
         public HttpStatusCode statusCode; // 直接使用枚举
         public string statusText;
         public Dictionary<string, string> headers;
+        
+        public string RawText; // 新增原始响应文本
 
         /// <summary>
         /// 简单判断是否成功
